@@ -233,12 +233,6 @@ public class PredictionServer implements Container {
 		String s="";
 		Part part = request.getPart("inputfile");
 		String file_Name = part.getFileName();
-		//System.out.println(part);
-		
-		//DocumentList d = new DocumentList(files);
-		//System.out.println("created a reference to document list");
-		//File f = new File(part.getFileName());
-		//System.out.println("path of uploaded file: "+Workbench.dataFolder.getAbsolutePath());
 		
 		//copy the uploaded file into testdata folder
 		final String destpath = Workbench.dataFolder.getAbsolutePath();
