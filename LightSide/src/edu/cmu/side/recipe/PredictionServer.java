@@ -10,15 +10,20 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -32,6 +37,7 @@ import org.simpleframework.transport.Server;
 import org.simpleframework.transport.connect.Connection;
 import org.simpleframework.transport.connect.SocketConnection;
 
+import edu.cmu.side.Workbench;
 import edu.cmu.side.model.data.DocumentList;
 import edu.cmu.side.model.data.PredictionResult;
 
@@ -95,13 +101,13 @@ public class PredictionServer implements Container {
 			}
 
 			else if (target.equals("/uploadinput")) {
-				System.out.println(target);
+				System.out.println("here");
 				if (request.getMethod().equals("POST")) {
-					answer = handleUpload(request, response);
+					//System.out.println();
+					answer = handleUploadInputDocument(request, response);
+				} else {
+					answer = handleGetInputDocument(request, response);
 				}
-//				else {
-//					answer = handleGetInputDocument(request, response);
-//				}
 			}
 
 			else if (target.startsWith("/try")) {
@@ -173,9 +179,9 @@ public class PredictionServer implements Container {
 		response.setValue("Content-Type", "text/html");
 		return "<head><title>SIDE Loader</title></head><body>" + "<h1>Document Loader</h1>"
 				+ "<form action=\"uploadinput\" method=\"post\" enctype=\"multipart/form-data\">"
-				+ "Document File: <input type=\"file\" name=\"input\"><br>"
-				+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
-				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload Model\">" + "</form>" + "</body>";
+				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
+				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
+				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>" + "</body>";
 	}
 
 	protected String handleGetEvaluate(Request request, Response response, String header) {
@@ -223,6 +229,55 @@ public class PredictionServer implements Container {
 	 * @throws IOException
 	 * @throws FileNotFoundException
 	 */
+	protected String handleUploadInputDocument(Request request, Response response)throws IOException, FileNotFoundException {
+		String s="";
+		Part part = request.getPart("inputfile");
+		String file_Name = part.getFileName();
+		//System.out.println(part);
+		
+		//DocumentList d = new DocumentList(files);
+		//System.out.println("created a reference to document list");
+		//File f = new File(part.getFileName());
+		//System.out.println("path of uploaded file: "+Workbench.dataFolder.getAbsolutePath());
+		
+		//copy the uploaded file into testdata folder
+		final String destpath = Workbench.dataFolder.getAbsolutePath();
+	    final Part filePart = request.getPart("inputfile");
+	    final String filename = file_Name.substring(Math.max(file_Name.lastIndexOf("/"), file_Name.lastIndexOf("\\"))+1);
+	    System.out.print("filename:"+filename);
+
+	    OutputStream out = null;
+	    InputStream filecontent = null;
+	    try {
+	        out = new FileOutputStream(new File(destpath + File.separator
+	                + filename));
+	        filecontent = filePart.getInputStream();
+
+	        int read = 0;
+	        final byte[] bytes = new byte[1024];
+
+	        while ((read = filecontent.read(bytes)) != -1) {
+	            out.write(bytes, 0, read);
+	        }
+	    } catch (FileNotFoundException fne) {
+	    	System.err.println("Error in prediction server");
+	    } finally {
+	        if (out != null) {
+	            out.close();
+	        }
+	        if (filecontent != null) {
+	            filecontent.close();
+	        }
+	    }
+	    
+	    Set<String> files = new HashSet<String>();
+		files.add(file_Name);
+		DocumentList d = new DocumentList(files);
+		System.out.println("created a reference to document list");
+		return s;
+	}
+	
+	
 	protected String handleUpload(Request request, Response response) throws IOException, FileNotFoundException {
 		Part part = request.getPart("model");
 		String nick = request.getPart("modelNick").getContent();
@@ -369,7 +424,7 @@ public class PredictionServer implements Container {
 		}
 
 		if (predictors.isEmpty()) {
-			System.out.println("Warning: no models attached yet. Use http://localhost:" + port + "/upload");
+			System.out.println("Warning: no models attached yet. Use http://localhost:" + port + "/uploadinput");
 		}
 
 		serve(port, 5);
