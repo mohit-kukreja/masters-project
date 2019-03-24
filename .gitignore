@@ -1,0 +1,25 @@
+#lightsideLibraries
+LightSide/lib/
+
+#OS dependency
+LightSide/LightSide.app/
+
+#plugins
+LightSide/plugins/
+
+#stanfordlibraries
+LightSide/stanford-segmenter-2018-10-16/
+
+#tests
+LightSide/tests/
+
+#toolkits
+LightSide/toolkits/
+
+#javawebview
+LightSide/web/
+
+#wekafiles
+LightSide/wekafiles
+
+LightSide/stanford-segmenter-2018-10-16.zip
