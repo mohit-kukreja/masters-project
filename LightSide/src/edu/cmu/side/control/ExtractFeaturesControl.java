@@ -318,6 +318,11 @@ public class ExtractFeaturesControl extends GenesisControl{
 			{
 				// System.out.println("EFC 289: extracting features for new feature table. Annotation "+selectedClassAnnotation+", type "+selectedClassType);
 				Collection<FeatureHit> hits = new HashSet<FeatureHit>();
+				System.out.println("update in ExtractFeatures"+update);
+				System.out.println("selectedClassAnnotation in ExtractFeatures"+selectedClassAnnotation);
+				System.out.println("selectedClassType in ExtractFeatures"+selectedClassType);
+
+
 				for (SIDEPlugin plug : plan.getExtractors().keySet())
 				{
 					if (!halt)
