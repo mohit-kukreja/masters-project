@@ -27,7 +27,6 @@ LightSide/.DS_Store
 .DS_Store
 LightSide/bin/edu/cmu/.DS_Store
 LightSide/bin/edu/cmu/side/.DS_Store
-Client/.DS_Store
 
 Client/lightside-webapp/.gitignore
 Client/e2e
