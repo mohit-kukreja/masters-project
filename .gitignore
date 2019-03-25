@@ -29,7 +29,7 @@ LightSide/bin/edu/cmu/.DS_Store
 LightSide/bin/edu/cmu/side/.DS_Store
 
 Client/lightside-webapp/.gitignore
-Client/e2e
+Client/lightside-webapp/e2e
 Client/lightside-webapp/node_modules
 Client/lightside-webapp/.git
 Client/lightside-webapp/.editorconfig
