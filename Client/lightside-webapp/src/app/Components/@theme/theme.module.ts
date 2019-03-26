@@ -38,6 +38,8 @@ import {
   NbCalendarKitModule
 } from "@nebular/theme";
 
+import { SampleLayoutComponent } from "./layouts";
+
 import { NbSecurityModule } from "@nebular/security";
 import { DEFAULT_THEME } from "./styles/theme.default";
 import { COSMIC_THEME } from "./styles/theme.cosmic";
@@ -80,11 +82,12 @@ const NB_MODULES = [
   NbTooltipModule,
   NbCalendarKitModule
 ];
+const COMPONENTS = [SampleLayoutComponent];
 
 const NB_THEME_PROVIDERS = [
   ...NbThemeModule.forRoot(
     {
-      name: "cosmic"
+      name: "corporate"
     },
     [DEFAULT_THEME, COSMIC_THEME, CORPORATE_THEME]
   ).providers,
@@ -93,15 +96,13 @@ const NB_THEME_PROVIDERS = [
   ...NbDatepickerModule.forRoot().providers,
   ...NbDialogModule.forRoot().providers,
   ...NbWindowModule.forRoot().providers,
-  ...NbToastrModule.forRoot().providers,
-  ...NbChatModule.forRoot({
-    messageGoogleMapKey: "AIzaSyA_wNuCzia92MAmdLRzmqitRGvCF7wCZPY"
-  }).providers
+  ...NbToastrModule.forRoot().providers
 ];
 
 @NgModule({
   imports: [...BASE_MODULES, ...NB_MODULES],
-  exports: [...BASE_MODULES, ...NB_MODULES]
+  exports: [...BASE_MODULES, ...NB_MODULES, ...COMPONENTS],
+  declarations: [...COMPONENTS]
 })
 export class ThemeModule {
   static forRoot(): ModuleWithProviders {
