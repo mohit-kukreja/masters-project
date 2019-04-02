@@ -19,13 +19,17 @@ import java.net.SocketAddress;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+
+import javax.swing.JOptionPane;
 
 import org.simpleframework.http.Part;
 import org.simpleframework.http.Query;
@@ -38,9 +42,21 @@ import org.simpleframework.transport.connect.Connection;
 import org.simpleframework.transport.connect.SocketConnection;
 
 import edu.cmu.side.Workbench;
+import edu.cmu.side.control.ExtractFeaturesControl;
+import edu.cmu.side.model.Recipe;
+import edu.cmu.side.model.RecipeManager;
+import edu.cmu.side.model.StatusUpdater;
 import edu.cmu.side.model.data.DocumentList;
+import edu.cmu.side.model.data.FeatureTable;
 import edu.cmu.side.model.data.PredictionResult;
-import org.json.JSONObject;
+import edu.cmu.side.model.feature.Feature;
+import edu.cmu.side.model.feature.Feature.Type;
+import edu.cmu.side.model.feature.FeatureHit;
+import edu.cmu.side.plugin.FeaturePlugin;
+import edu.cmu.side.plugin.SIDEPlugin;
+import edu.cmu.side.view.util.SwingUpdaterLabel;
+import plugins.features.BasicFeatures;
+
 /**
  * loads a model trained using lightSIDE uses it to label new instances via the
  * web. TODO (maybe): allow classification of multiple instances at once, or by
@@ -105,6 +121,12 @@ public class PredictionServer implements Container {
 				if (request.getMethod().equals("POST")) {
 					// System.out.println();
 					answer = handleUploadInputDocument(request, response);
+					if (answer=="Success")
+					{
+						response.setDescription("Successfully uploaded file");
+						answer= response.getDescription();
+					}
+						
 				} else {
 					answer = handleGetInputDocument(request, response);
 				}
@@ -128,11 +150,16 @@ public class PredictionServer implements Container {
 				response.setCode(404);
 				body.println("There is no data, only zuul.");
 			} else
+			{
 				body.println(answer);
+				//body.println(response.getDescription());
+			}
+				
 
 			int code = response.getCode();
 			if (code != 200) {
 				body.println("HTTP Code " + code);
+				//System.out.println("in ");
 				System.out.println("HTTP Code " + code);
 			}
 
@@ -230,51 +257,135 @@ public class PredictionServer implements Container {
 	 * @throws IOException
 	 * @throws FileNotFoundException
 	 */
-	protected String handleUploadInputDocument(Request request, Response response)
-			throws IOException, FileNotFoundException {
-		System.out.println("inside handleupload");
+	protected String handleUploadInputDocument(Request request, Response response)throws IOException, FileNotFoundException {
 		Part part = request.getPart("inputfile");
 		String file_Name = part.getFileName();
-
-		// copy the uploaded file into testdata folder
+	
+		//copy the uploaded file into testdata folder
 		final String destpath = Workbench.dataFolder.getAbsolutePath();
-		final Part filePart = request.getPart("inputfile");
-		final String filename = file_Name
-				.substring(Math.max(file_Name.lastIndexOf("/"), file_Name.lastIndexOf("\\")) + 1);
-		System.out.print("filename:" + filename);
+	    final Part filePart = request.getPart("inputfile");
+	    final String filename = file_Name.substring(Math.max(file_Name.lastIndexOf("/"), file_Name.lastIndexOf("\\"))+1);
+	   // System.out.print("filename:"+filename);
+	    OutputStream out = null;
+	    InputStream filecontent = null;
+	    try {
+	        out = new FileOutputStream(new File(destpath + File.separator
+	                + filename));
+	        filecontent = filePart.getInputStream();
 
-		OutputStream out = null;
-		InputStream filecontent = null;
-		try {
-			out = new FileOutputStream(new File(destpath + File.separator + filename));
-			filecontent = filePart.getInputStream();
+	        int read = 0;
+	        final byte[] bytes = new byte[1024];
 
-			int read = 0;
-			final byte[] bytes = new byte[1024];
-
-			while ((read = filecontent.read(bytes)) != -1) {
-				out.write(bytes, 0, read);
-			}
-		} catch (FileNotFoundException fne) {
-			System.err.println("Error in prediction server");
-		} finally {
-			if (out != null) {
-				out.close();
-			}
-			if (filecontent != null) {
-				filecontent.close();
-			}
-		}
-
-		Set<String> files = new HashSet<String>();
+	        while ((read = filecontent.read(bytes)) != -1) {
+	            out.write(bytes, 0, read);
+	        }
+	    } catch (FileNotFoundException fne) {
+	    	System.err.println("Error in prediction server");
+	    } finally {
+	        if (out != null) {
+	            out.close();
+	        }
+	        if (filecontent != null) {
+	            filecontent.close();
+	        }
+	    }
+	    
+	    Set<String> files = new HashSet<String>();
 		files.add(file_Name);
-		String s = "created a reference to document list";
-
+		//creating a document list and setting all the required parameters for feature extraction
 		DocumentList d = new DocumentList(files);
-		JSONObject res = new JSONObject(response);
-		return res.toString();
-//		return "created a reference to document list";
+		String annot = "Vote";
+		if (d.getTextColumns().contains(annot))
+		{
+			d.setTextColumn(annot, false);
+		}
+		
+		Type valueType = d.getValueType(annot);
 
+		Map<String, Boolean> columns = new TreeMap<String, Boolean>();
+		for (String s : d.allAnnotations().keySet())
+		{
+			if (!annot.equals(s)) columns.put(s, false);
+		}
+		for (String s : d.getTextColumns())
+		{
+			columns.put(s, true);
+		}
+		
+		//removing text column from all annotations and adding it to textcolumns 
+		d.setTextColumn("text", true);
+		Workbench.update(RecipeManager.Stage.DOCUMENT_LIST);
+		
+	    System.out.println("Completed process of load file");
+	    
+		RecipeManager rp=Workbench.getRecipeManager();
+		Recipe plan=Workbench.recipeManager.fetchDocumentListRecipe(d);
+		
+		//adding an extractor to recipe i.e Basic Features
+		FeaturePlugin b = new BasicFeatures();
+		Collection<FeaturePlugin> plugins = new HashSet<FeaturePlugin>();
+		plugins.add(b);
+		
+		Map<String, String> plugin_config = new HashMap<String, String>(); 
+		plugin_config.put("Bigrams","false");
+		plugin_config.put("Contains Non-Stopwords","false");
+		plugin_config.put("Count Occurences","false");
+		plugin_config.put("Ignore All-stopword N-Grams","false");
+		plugin_config.put("Include Punctuation","true");
+		plugin_config.put("Line Length","false");
+		plugin_config.put("Normalize N-Gram Counts","false");
+		plugin_config.put("POS Bigrams","false");
+		plugin_config.put("POS Trigrams","false");
+		plugin_config.put(" Skip Stopwords in N-Grams","false");
+		plugin_config.put("Stem N-Grams","false");
+		plugin_config.put("Track Feature Hit Location","true");
+		plugin_config.put("Trigrams","false");
+		plugin_config.put("Unigrams","true");
+		plugin_config.put("Word/POS Pairs","false");
+		plan.addExtractor(b, plugin_config);
+		boolean halt=false;
+		FeaturePlugin activeExtractor =  null;
+		StatusUpdater update = new SwingUpdaterLabel();
+	//checking the number of hits and generating feature table
+		try
+		{
+			// System.out.println("EFC 289: extracting features for new feature table. Annotation "+selectedClassAnnotation+", type "+selectedClassType);
+			Collection<FeatureHit> hits = new HashSet<FeatureHit>();
+			for (SIDEPlugin plug : plan.getExtractors().keySet())
+			{
+				if (!halt)
+				{  
+					//	System.out.println("checking for added plugin: "+plan.getExtractors().get(plug).toString());
+					activeExtractor = (FeaturePlugin) plug;
+					//System.out.println("fetched active extractor"+activeExtractor.toString());
+					hits.addAll(activeExtractor.extractFeatureHits(plan.getDocumentList(), plan.getExtractors().get(plug), update));
+				}
+
+			} 
+			System.out.println("size of hits"+hits.size());
+			if (!halt)
+			{
+				update.update("Building Feature Table");
+				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , "ExtractFeatureVote" , Type.NOMINAL);
+				ft.setName(file_Name+"testFeatures");
+				plan.setFeatureTable(ft);
+			} 
+		}
+		catch (Exception e)
+		{
+			JOptionPane.showMessageDialog(null, "Couldn't finish the feature table.\nSee lightside_log for more details.\n"+e.getLocalizedMessage(),"Feature Failure",JOptionPane.ERROR_MESSAGE);
+			System.err.println("Feature Extraction Failed");
+		}
+	
+		Collection<Feature> features=plan.getFeatureTable().getSortedFeatures();
+		System.out.println("Number of features extracted:"+ features.size());
+		for(Feature f: features )
+		{
+			System.out.println("feature name: "+f);
+		}
+		System.out.println("Created Feature Extraction!!");
+		
+		return "Success";
 	}
 
 	protected String handleUpload(Request request, Response response) throws IOException, FileNotFoundException {
