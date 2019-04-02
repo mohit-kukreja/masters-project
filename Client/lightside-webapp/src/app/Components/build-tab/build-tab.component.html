@@ -1,0 +1,27 @@
+<nb-card>
+  <nb-card-header>Build your model</nb-card-header>
+  <nb-card-body>
+    <div class="row">
+      <div class="example-container col-md-6">
+        <div class="container-title">
+          <form (ngSubmit)="onSubmit()">
+            <input
+              type="file"
+              class="form-control"
+              name="inputfile"
+              (change)="onFileSelected($event)"
+            />
+            <div class="container-btn">
+              <Button class="btn-demo" nbButton hero type="submit" name="Submit"
+                >Upload File For Selection</Button
+              >
+            </div>
+          </form>
+          <!-- <div class="icon">
+            <i class="ion-checkmark" [nbPopover]="icon"></i>
+          </div> -->
+        </div>
+      </div>
+    </div>
+  </nb-card-body>
+</nb-card>

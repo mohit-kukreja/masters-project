@@ -104,6 +104,7 @@ public class PredictionServer implements Container {
 
 			response.setValue("Content-Type", "text/plain");
 			response.setValue("Server", "HelloWorld/1.0 (Simple 4.0)");
+			response.setValue("Access-Control-Allow-Origin", "*");
 			response.setDate("Date", time);
 			response.setDate("Last-Modified", time);
 
@@ -117,9 +118,8 @@ public class PredictionServer implements Container {
 			}
 
 			else if (target.equals("/uploadinput")) {
-				System.out.println("here");
 				if (request.getMethod().equals("POST")) {
-					//System.out.println();
+					// System.out.println();
 					answer = handleUploadInputDocument(request, response);
 					if (answer=="Success")
 					{
@@ -207,8 +207,9 @@ public class PredictionServer implements Container {
 		return "<head><title>SIDE Loader</title></head><body>" + "<h1>Document Loader</h1>"
 				+ "<form action=\"uploadinput\" method=\"post\" enctype=\"multipart/form-data\">"
 				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
-				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
-				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>" + "</body>";
+				// + "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
+				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>"
+				+ "</body>";
 	}
 
 	protected String handleGetEvaluate(Request request, Response response, String header) {
@@ -386,8 +387,7 @@ public class PredictionServer implements Container {
 		
 		return "Success";
 	}
-	
-	
+
 	protected String handleUpload(Request request, Response response) throws IOException, FileNotFoundException {
 		Part part = request.getPart("model");
 		String nick = request.getPart("modelNick").getContent();
