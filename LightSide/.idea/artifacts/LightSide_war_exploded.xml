@@ -7,6 +7,10 @@
         <element id="directory" name="classes">
           <element id="module-output" name="LightSide" />
         </element>
+        <element id="directory" name="lib">
+          <element id="library" level="project" name="org.apache.clerezza.ext:org.json.simple:0.4" />
+          <element id="library" level="application" name="org.apache.clerezza.ext:org.json.simple:0.4" />
+        </element>
       </element>
     </root>
   </artifact>

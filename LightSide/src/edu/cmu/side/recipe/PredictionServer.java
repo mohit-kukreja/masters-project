@@ -40,7 +40,7 @@ import org.simpleframework.transport.connect.SocketConnection;
 import edu.cmu.side.Workbench;
 import edu.cmu.side.model.data.DocumentList;
 import edu.cmu.side.model.data.PredictionResult;
-
+import org.json.JSONObject;
 /**
  * loads a model trained using lightSIDE uses it to label new instances via the
  * web. TODO (maybe): allow classification of multiple instances at once, or by
@@ -88,6 +88,7 @@ public class PredictionServer implements Container {
 
 			response.setValue("Content-Type", "text/plain");
 			response.setValue("Server", "HelloWorld/1.0 (Simple 4.0)");
+			response.setValue("Access-Control-Allow-Origin", "*");
 			response.setDate("Date", time);
 			response.setDate("Last-Modified", time);
 
@@ -101,7 +102,6 @@ public class PredictionServer implements Container {
 			}
 
 			else if (target.equals("/uploadinput")) {
-				System.out.println("in /uploadinput");
 				if (request.getMethod().equals("POST")) {
 					// System.out.println();
 					answer = handleUploadInputDocument(request, response);
@@ -232,7 +232,6 @@ public class PredictionServer implements Container {
 	 */
 	protected String handleUploadInputDocument(Request request, Response response)
 			throws IOException, FileNotFoundException {
-		String s = "";
 		System.out.println("inside handleupload");
 		Part part = request.getPart("inputfile");
 		String file_Name = part.getFileName();
@@ -269,9 +268,13 @@ public class PredictionServer implements Container {
 
 		Set<String> files = new HashSet<String>();
 		files.add(file_Name);
+		String s = "created a reference to document list";
+
 		DocumentList d = new DocumentList(files);
-		System.out.println("created a reference to document list");
-		return s;
+		JSONObject res = new JSONObject(response);
+		return res.toString();
+//		return "created a reference to document list";
+
 	}
 
 	protected String handleUpload(Request request, Response response) throws IOException, FileNotFoundException {
