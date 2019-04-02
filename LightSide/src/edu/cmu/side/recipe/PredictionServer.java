@@ -104,6 +104,7 @@ public class PredictionServer implements Container {
 
 			response.setValue("Content-Type", "text/plain");
 			response.setValue("Server", "HelloWorld/1.0 (Simple 4.0)");
+			response.setValue("Access-Control-Allow-Origin", "*");
 			response.setDate("Date", time);
 			response.setDate("Last-Modified", time);
 
@@ -123,8 +124,9 @@ public class PredictionServer implements Container {
 					answer = handleUploadInputDocument(request, response);
 					if (answer=="Success")
 					{
-						response.setDescription("Successfully uploaded file");
+//						response.setDescription("Successfully uploaded file");
 						answer= response.getDescription();
+						response.setValue("file Uploaded",answer);
 					}
 						
 				} else {
