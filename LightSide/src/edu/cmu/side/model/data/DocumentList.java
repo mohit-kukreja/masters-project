@@ -259,11 +259,13 @@ public class DocumentList implements Serializable
                         	 f = new File(Workbench.dataFolder.getAbsolutePath(), filename.substring(Math.max(filename.lastIndexOf("/"), filename.lastIndexOf("\\"))+1));
                         }                      
                         in = new CSVReader(new FileReader(f));
-                        String[] headers = in.readNextMeaningful();                   
+                        String[] headers = in.readNextMeaningful();  
+                      
                         List<Integer> annotationColumns = new ArrayList<Integer>();
                      
                         for(int i = 0; i < headers.length; i++){
                                 headers[i] = headers[i].trim();
+                    
                                 if(headers[i].length()>0){
                                         annotationColumns.add(i);
                                 }
@@ -281,7 +283,7 @@ public class DocumentList implements Serializable
                         }
                     
                         String[] line;
-
+                        
                         while((line = in.readNextMeaningful()) != null){
                                 String[] instance = new String[line.length];
                                 for(int i = 0; i < line.length; i++){
@@ -312,6 +314,7 @@ public class DocumentList implements Serializable
                         Arrays.fill(empty, emptyAnnotationString);
                         for(String emptyAnnotation : removedAnnotations){
                                 allAnnotations.get(emptyAnnotation).addAll(Arrays.asList(empty));
+                                
                         }
                 }catch(Exception e){
                 	
