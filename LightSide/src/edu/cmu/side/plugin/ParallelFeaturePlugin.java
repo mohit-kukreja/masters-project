@@ -96,19 +96,19 @@ public abstract class ParallelFeaturePlugin extends FeaturePlugin {
 //							System.out.println(documents.allAnnotations());
 							// System.out.println("Text columns \t");
 							// System.out.println("getTextColumn keys \t" + name);
-							 System.out.println("Text columns keyset"+documents.getTextColumns());
+//							 System.out.println("Text columns keyset"+documents.getTextColumns());
 							// for (String l1 : l) {
 							// System.out.print(l1);
 							// }
 							// }
-							 System.out.println(
-							 "differentiate text columns \t" + documents.getTextColumnsAreDifferentiated());
-							 
-							 System.out.println("current Annotation \t" + documents.getCurrentAnnotation());
-							 
-							 System.out.println("name \t" + documents.getName());
-							 
-							 System.out.println("empty annotation string \t" + documents.getEmptyAnnotationString());
+//							 System.out.println(
+//							 "differentiate text columns \t" + documents.getTextColumnsAreDifferentiated());
+//							 
+//							 System.out.println("current Annotation \t" + documents.getCurrentAnnotation());
+//							 
+//							 System.out.println("name \t" + documents.getName());
+//							 
+//							 System.out.println("empty annotation string \t" + documents.getEmptyAnnotationString());
 
 							Collection<FeatureHit> docHits = extractFeatureHitsFromDocument(documents, index);
 							hits.addAll(docHits);
