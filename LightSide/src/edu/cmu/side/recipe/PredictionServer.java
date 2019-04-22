@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.Vector;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.logging.Logger;
@@ -57,8 +58,10 @@ import edu.cmu.side.model.feature.Feature.Type;
 import edu.cmu.side.model.feature.FeatureHit;
 import edu.cmu.side.plugin.FeaturePlugin;
 import edu.cmu.side.plugin.LearningPlugin;
+import edu.cmu.side.plugin.ModelMetricPlugin;
 import edu.cmu.side.plugin.SIDEPlugin;
 import edu.cmu.side.plugin.WrapperPlugin;
+import edu.cmu.side.plugin.control.PluginManager;
 import edu.cmu.side.view.util.ParallelTaskUpdater;
 import edu.cmu.side.view.util.RadioButtonListEntry;
 import edu.cmu.side.view.util.SwingUpdaterLabel;
@@ -134,7 +137,7 @@ public class PredictionServer implements Container {
 			}
 
 			else if (target.equals("/uploadinput")) {
-				System.out.println("here");
+				//System.out.println("here");
 				if (request.getMethod().equals("POST")) {
 					//System.out.println();
 					answer = handleUploadInputDocument(request, response);
@@ -393,7 +396,7 @@ public class PredictionServer implements Container {
 			if (!halt)
 			{
 				update.update("Building Feature Table");
-				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , "ExtractFeatureVote" , Type.NOMINAL);
+				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , "Vote" , Type.NOMINAL);
 				ft.setName(file_Name+"testFeatures");
 				plan.setFeatureTable(ft);
 				
@@ -420,105 +423,81 @@ public class PredictionServer implements Container {
 	}
 	
 	public String handleBuildModel(Recipe plan) {
-		ArrayList<RadioButtonListEntry> pluginsToPass = new ArrayList<RadioButtonListEntry>();
-//		{foldMethod=AUTO, numFolds=10, source=RANDOM, test=true, testRecipe=Gallup.csv, testSet=edu.cmu.side.model.data.DocumentList@1fe28376, type=CV}
-//		String s = "Naive Bayes";
+	
+		Map<LearningPlugin, Boolean> learningPlugins;
+		SIDEPlugin[] learners = PluginManager.getSIDEPluginArrayByType("model_builder");
 		
-		Map<LearningPlugin, Boolean> learningPlugins = BuildModelControl.getLearningPlugins();
-		for (LearningPlugin plug : learningPlugins.keySet()) {
-			RadioButtonListEntry entry = new RadioButtonListEntry(plug, learningPlugins.get(plug));
-			pluginsToPass.add(entry);
-		}
+		plan=plan.addLearnerToRecipe(plan,(LearningPlugin)learners[2] , learners[2].generateConfigurationSettings());
 		
-		LearningPlugin r = (LearningPlugin) pluginsToPass.get(1).getValue();
-		BuildModelControl.setHighlightedLearningPlugin(r);
+		WekaBayes wb= new WekaBayes();
+		plan.setLearnerSettings(wb.generateConfigurationSettings());
 		
-		StatusUpdater update = new ParallelTaskUpdater(10);
-		
-		
-		BuildModelControl.updateValidationSetting("test",Boolean.FALSE.toString());
-		BuildModelControl.updateValidationSetting("type", "CV");
-		BuildModelControl.updateValidationSetting("source", "RANDOM");
-		BuildModelControl.updateValidationSetting("numFolds", "10");
+		BuildModelControl.updateValidationSetting("annotation", "Age");
 		BuildModelControl.updateValidationSetting("foldMethod", "AUTO");
-//		BuildModelControl.updateValidationSetting("testRecipe", plan.get);
-
-		Map<String, Serializable>validationSettings = BuildModelControl.getValidationSettings();
-
-		System.out.println("VALIDATION SETTINGS BEFORE \t"+BuildModelControl.getValidationSettings());
-
-
-		try {
-			if (Boolean.TRUE.toString().equals(validationSettings.get("test"))) {
-				if (validationSettings.get("type").equals("CV")) {
-					validationSettings.put("testSet", BuildModelControl.getHighlightedFeatureTableRecipe().getDocumentList());
+		BuildModelControl.updateValidationSetting("numFolds", "10");
+		BuildModelControl.updateValidationSetting("source", "RANDOM");
+		BuildModelControl.updateValidationSetting("test","true");
+		BuildModelControl.updateValidationSetting("testRecipe", plan);
+		BuildModelControl.updateValidationSetting("testSet", plan.getDocumentList());
+		BuildModelControl.updateValidationSetting("type", "CV");
+		
+		
+		try
+		{
+			FeatureTable current = plan.getTrainingTable();
+			if (current != null)
+			{
+				TrainingResult results = null;
+				if (results == null)
+				{
+					logger.info("Training new model.");
+					results = plan.getLearner().train(current, plan.getLearnerSettings(), BuildModelControl.getValidationSettings(), plan.getWrappers(),
+							BuildModelControl.getUpdater());
+					
 				}
-			}
-		
-		Recipe newRecipe = plan;
-		LearningPlugin learner = BuildModelControl.getHighlightedLearningPlugin();
-		
-		System.out.println("LEARNER IN PSV \t"+learner);
-		Map<String, String> settings = learner.generateConfigurationSettings();
-		newRecipe = Recipe.addLearnerToRecipe(newRecipe, learner, settings);
-		newRecipe.setValidationSettings(new TreeMap<String, Serializable>(validationSettings));
-		for (WrapperPlugin wrap : BuildModelControl.getWrapperPlugins().keySet()) {
-			if (BuildModelControl.getWrapperPlugins().get(wrap)) {
-				newRecipe.addWrapper(wrap, wrap.generateConfigurationSettings());
+
+				if (results != null)
+				{
+					System.out.println("Fetched Results successfully");
+					plan.setTrainingResult(results);
+					results.setName("BuiltNaiveBayes");
+
+					plan.setLearnerSettings(plan.getLearner().generateConfigurationSettings());
+					plan.setValidationSettings(new TreeMap<String, Serializable>(BuildModelControl.getValidationSettings()));
+					System.out.println("confusion matrix key set"+results.getConfusionMatrix().keySet().size());
+					System.out.println("Evaluation:"+results.getEvaluationTable().getSize());
+					Map<String, String> allKeys = new TreeMap<String, String>();
+						Collection<ModelMetricPlugin> plugins = BuildModelControl.getModelEvaluationPlugins();
+						for(ModelMetricPlugin plugin : plugins){
+							Map<String, String> evaluations = plugin.evaluateModel(results, plugin.generateConfigurationSettings());
+							results.cacheEvaluations(evaluations);
+							for(String s : evaluations.keySet()){
+								Vector<Object> row = new Vector<Object>();
+								row.add(s);
+								try{
+									Double d = Double.parseDouble(evaluations.get(s));
+									row.add(d);
+								}catch(Exception e){
+									row.add(evaluations.get(s));
+								}
+							}
+							allKeys.putAll(evaluations);
+						}			
+						
+					System.out.println("Model Evaluation Matrix");
+					for(String s:allKeys.keySet())
+					{
+						System.out.println(s+" "+allKeys.get(s));
+					}
+					
+				}
 			}
 		}
-		
-		
-		System.out.println("PSv 423: wrappers=" + BuildModelControl.getWrapperPlugins());
-		System.out.println("PSv 424: Learneing plugin=" + BuildModelControl.getLearningPlugins());
-		System.out.println("PSv 425: Model Evaluation Plugin=" + BuildModelControl.getModelEvaluationPlugins());
-		System.out.println("PSv 426: Validation Settings =" + BuildModelControl.getValidationSettings());
-		System.out.println("PSv 427: Highlighted Feature Table REcipe  =" + BuildModelControl.getHighlightedFeatureTableRecipe());
-		
-		
-		
-			FeatureTable current = plan.getTrainingTable();
-			if (current != null) {
-				TrainingResult results = null;
-				if (validationSettings.get("type").equals("SUPPLY")) {
-					DocumentList test = (DocumentList) validationSettings.get("testSet");
-					FeatureTable extractTestFeatures = BuildModelControl.prepareTestFeatureTable(plan, test, update);
-					validationSettings.put("testFeatureTable", extractTestFeatures);
-
-					// if we've already trained the exact same model, don't
-					// do it again. Just evaluate.
-				
-				
-				}
-
-				// Map<String, String> recipeLearner = plan.getLearnerSettings();
-				// for (String s : recipeLearner.keySet()) {
-				// System.out.println("LEARNER Key \t" + s);
-				// System.out.println("LEARNER Value \t" + recipeLearner.get(s));
-				// }
-				if (results == null) {
-					logger.info("dotask in buildControlModel");
-					logger.info("Training new model.");
-
-					// System.out.println("LEARNER SETTINGS \t" + plan.getLearnerSettings());
-					// System.out.println("Validation SETTINGS \t" + validationSettings);
-					// System.out.println("Vwrappers \t" + plan.getWrappers());
-					// System.out.println("BuildModelControl getupdater \t" +
-					// BuildModelControl.getUpdater());
-
-					results = plan.getLearner().train(current, plan.getLearnerSettings(), validationSettings,
-							plan.getWrappers(), BuildModelControl.getUpdater());
-				}
-
-				if (results != null) {
-					plan.setTrainingResult(results);
-					plan.setLearnerSettings(plan.getLearner().generateConfigurationSettings());
-					plan.setValidationSettings(new TreeMap<String, Serializable>(validationSettings));
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
+		catch (Exception e)
+		{
+			
 			plan = null;
+			
 		}
 		return "Success";
 	}
