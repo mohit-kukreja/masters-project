@@ -59,6 +59,7 @@ const NB_MODULES = [
   NbSidebarModule,
   NbCheckboxModule,
   NbPopoverModule,
+  NbRadioModule,
   NbContextMenuModule,
   NgbModule,
   NbSecurityModule, // *nbIsGranted directive,

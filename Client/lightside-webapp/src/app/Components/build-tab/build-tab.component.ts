@@ -1,16 +1,22 @@
-import {ChangeDetectionStrategy ,Component, OnInit } from "@angular/core";
+import { ChangeDetectionStrategy, Component, OnInit } from "@angular/core";
 import { BuildTabService } from "./build-tab.service";
+import { FormControl, FormGroup } from "@angular/forms";
 
 @Component({
   selector: "app-build-tab",
   templateUrl: "./build-tab.component.html",
   styleUrls: ["./build-tab.component.scss"],
-  changeDetection:ChangeDetectionStrategy.OnPush,
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BuildTabComponent {
   inputfile: File;
   SelectedFile = null;
-  constructor(private buildTabService: BuildTabService) {}
+  selectedOption:any;
+  constructor(private buildTabService: BuildTabService) {
+    
+  }
+
+
 
   onFileSelected(event) {
     this.SelectedFile = event.target.files[0];
