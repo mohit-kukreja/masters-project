@@ -15,7 +15,7 @@ import {
   styleUrls: ["./sample.layout.scss"],
   template: `
     <nb-layout windowMode>
-      <nb-layout-header fixed> Tabs </nb-layout-header>
+      <nb-layout-header fixed> LightSIDE </nb-layout-header>
       <nb-layout-column class="main-content">
         <ng-content select="router-outlet"></ng-content>
       </nb-layout-column>

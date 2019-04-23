@@ -1,5 +1,13 @@
 import { Injectable } from "@angular/core";
-import { HttpHeaders, HttpClient } from "@angular/common/http";
+import {
+  HttpHeaders,
+  HttpClient,
+  HttpErrorResponse,
+  HttpResponse
+} from "@angular/common/http";
+import "rxjs/add/operator/catch";
+import { Observable, throwError } from "rxjs";
+import { catchError, retry } from "rxjs/operators";
 @Injectable({
   providedIn: "root"
 })
@@ -8,7 +16,8 @@ export class BuildTabService {
   constructor(private http: HttpClient) {}
 
   uploadFile(payload) {
-    console.log("called");
-    return this.http.post("http://localhost:8000/uploadinput", payload);
+    return this.http.post("http://localhost:8000/uploadinput", payload, {
+      responseType: "text"
+    });
   }
 }

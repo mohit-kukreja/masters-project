@@ -9,11 +9,11 @@ export class AllTabsComponent implements OnInit {
   tabs: any[] = [
     {
       title: "Build",
-      route: "BuildTab"
+      route: "/BuildTab"
     },
     {
       title: "Predict",
-      route: "PredictTab"
+      route: "/PredictTab"
     }
   ];
   constructor() {}

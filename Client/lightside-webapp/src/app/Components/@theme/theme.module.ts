@@ -2,6 +2,7 @@ import { ModuleWithProviders, NgModule } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { NgbModule } from "@ng-bootstrap/ng-bootstrap";
+import { NgxSpinnerModule } from "ngx-spinner";
 
 import {
   NbActionsModule,
@@ -81,7 +82,8 @@ const NB_MODULES = [
   NbSelectModule,
   NbChatModule,
   NbTooltipModule,
-  NbCalendarKitModule
+  NbCalendarKitModule,
+  NgxSpinnerModule
 ];
 const COMPONENTS = [SampleLayoutComponent];
 
