@@ -153,6 +153,23 @@ public class PredictionServer implements Container {
 				}
 			}
 			
+			else if (target.equals("/uploadtest")) {
+				//System.out.println("here");
+				if (request.getMethod().equals("POST")) {
+					//System.out.println();
+					answer = handlePredictTest(request, response);
+					if (answer=="Success")
+					{
+//						response.setDescription("Successfully uploaded file");
+						answer= response.getDescription();
+						response.setValue("file Uploaded",answer);
+					}
+						
+				} else {
+					answer = handleGetTestData(request, response);
+				}
+			}
+			
 //			else if (target.equals("/buildmodel")) {
 //				System.out.println("buildmodel rest");
 //				if (request.getMethod().equals("POST")) {
@@ -241,6 +258,15 @@ public class PredictionServer implements Container {
 				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
 				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
 				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>" + "</body>";
+	}
+	
+	protected String handleGetTestData(Request request, Response response) {
+		response.setValue("Content-Type", "text/html");
+		return "<head><title>SIDE Loader</title></head><body>" + "<h1>Upload Test Data</h1>"
+				+ "<form action=\"uploadtest\" method=\"post\" enctype=\"multipart/form-data\">"
+				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
+				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
+				+ "<input type=\"submit\" name=\"Submit\" value=\"Predict\">" + "</form>" + "</body>";
 	}
 
 	protected String handleGetEvaluate(Request request, Response response, String header) {
@@ -499,6 +525,9 @@ public class PredictionServer implements Container {
 			plan = null;
 			
 		}
+		Workbench.update(RecipeManager.Stage.TRAINED_MODEL);
+		Workbench.getRecipeManager().addRecipe(plan);
+		System.out.println("Recipe name:"+plan.getRecipeName());
 		return "Success";
 	}
 	
@@ -559,6 +588,63 @@ public class PredictionServer implements Container {
 
 	public PredictionServer(int size) {
 		this.executor = Executors.newFixedThreadPool(size);
+	}
+	
+	protected String handlePredictTest(Request request, Response response) throws IOException {
+		// TODO: use threaded tasks.
+		String answer = "";
+		Collection<Recipe> recipelist=Workbench.getRecipeManager().getRecipeCollectionByType(RecipeManager.Stage.TRAINED_MODEL);
+		System.out.println("Fetched recipelist size:"+recipelist.size());
+		
+		List<Recipe> rp=new ArrayList<Recipe>(recipelist);
+		Recipe trainedModel= rp.get(0);
+		boolean useEvaluation=false;
+		boolean showDists=false;
+		boolean overwrite=false;
+		DocumentList originalDocs;
+		DocumentList newDocs = null;
+		Exception ex = null;
+		String name="PredictedTestData";
+		try
+		{
+			/*if(useEvaluation)
+			{
+				originalDocs = trainedModel.getTrainingResult().getEvaluationTable().getDocumentList();
+
+				TrainingResult results = trainedModel.getTrainingResult();
+				List<String> predictions = (List<String>) results.getPredictions();
+				newDocs = addLabelsToDocs(name, showDists, overwrite, originalDocs, results, predictions);
+			}
+			else
+			{*/
+				originalDocs = trainedModel.getDocumentList();
+
+				Predictor predictor = new Predictor(trainedModel, name);
+				newDocs = predictor.predict(originalDocs, name, showDists, overwrite);
+				String[] a=newDocs.getAnnotationNames();
+				
+				for(String s:a)
+				{
+					System.out.println("column:"+s);
+				}
+					System.out.println("value:");
+					List<String> l=newDocs.getAnnotationArray("PredictedTestData");
+					for(String s1:l)
+						System.out.print(s1+", ");
+					
+				
+			//}
+		}
+		catch(Exception e)
+		{
+			ex = e;
+			
+		}
+		if(newDocs.getSize()!=0)
+		{
+			answer="Success";
+		}
+		return answer;
 	}
 
 	protected String handlePredict(Request request, Response response) throws IOException {
