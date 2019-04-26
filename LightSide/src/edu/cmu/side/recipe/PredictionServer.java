@@ -45,8 +45,12 @@ import org.simpleframework.transport.Server;
 import org.simpleframework.transport.connect.Connection;
 import org.simpleframework.transport.connect.SocketConnection;
 
+
+
+
 import edu.cmu.side.Workbench;
 import edu.cmu.side.control.ExtractFeaturesControl;
+import edu.cmu.side.control.PredictLabelsControl;
 import edu.cmu.side.model.Recipe;
 import edu.cmu.side.model.RecipeManager;
 import edu.cmu.side.model.StatusUpdater;
@@ -62,6 +66,8 @@ import edu.cmu.side.plugin.ModelMetricPlugin;
 import edu.cmu.side.plugin.SIDEPlugin;
 import edu.cmu.side.plugin.WrapperPlugin;
 import edu.cmu.side.plugin.control.PluginManager;
+import edu.cmu.side.view.util.CSVExporter;
+import edu.cmu.side.view.util.DocumentListTableModel;
 import edu.cmu.side.view.util.ParallelTaskUpdater;
 import edu.cmu.side.view.util.RadioButtonListEntry;
 import edu.cmu.side.view.util.SwingUpdaterLabel;
@@ -81,6 +87,7 @@ import edu.cmu.side.model.data.TrainingResult;
  * 
  * @author dadamson
  */
+
 public class PredictionServer implements Container {
 	protected static Map<String, Predictor> predictors = new HashMap<String, Predictor>();
 
@@ -100,7 +107,8 @@ public class PredictionServer implements Container {
 	}
 
 	@Override
-	public void handle(final Request request, final Response response) {
+	public void handle(final Request request, final Response response){
+	//public void handle(HttpServletRequest request, HttpServletResponse response) throws ServletException{
 		executor.execute(new Runnable() {
 
 			@Override
@@ -137,15 +145,16 @@ public class PredictionServer implements Container {
 			}
 
 			else if (target.equals("/uploadinput")) {
-				//System.out.println("here");
+				
 				if (request.getMethod().equals("POST")) {
-					//System.out.println();
+					
 					answer = handleUploadInputDocument(request, response);
-					if (answer=="Success")
-					{
-//						response.setDescription("Successfully uploaded file");
+					if (answer!="")
+					{				
 						answer= response.getDescription();
-						response.setValue("file Uploaded",answer);
+						response.setValue("file Uploaded","Success");
+						response.setValue("Accuracy",answer);
+						System.out.println(response.getValue("Accuracy"));
 					}
 						
 				} else {
@@ -154,15 +163,15 @@ public class PredictionServer implements Container {
 			}
 			
 			else if (target.equals("/uploadtest")) {
-				//System.out.println("here");
+				
 				if (request.getMethod().equals("POST")) {
-					//System.out.println();
+					
 					answer = handlePredictTest(request, response);
 					if (answer=="Success")
 					{
-//						response.setDescription("Successfully uploaded file");
+
 						answer= response.getDescription();
-						response.setValue("file Uploaded",answer);
+						
 					}
 						
 				} else {
@@ -170,16 +179,22 @@ public class PredictionServer implements Container {
 				}
 			}
 			
-//			else if (target.equals("/buildmodel")) {
-//				System.out.println("buildmodel rest");
-//				if (request.getMethod().equals("POST")) {
-//					//System.out.println();
-//					answer = handleBuildModel(request, response);	
-//				} else {
-//					answer = handleGetInputDocument(request, response);
-//				}
-//			}
-			
+			else if (target.equals("/CSVsave")) {
+				
+				if (request.getMethod().equals("POST")) {
+					
+					answer = handleCSVSave(request, response);
+					if (answer=="Success")
+					{
+
+						answer= response.getDescription();
+						response.setValue("file Uploaded",answer);
+					}
+						
+				} else {
+					answer = handleCsvSave(request, response);
+				}
+			}
 
 			else if (target.startsWith("/try")) {
 				if (request.getMethod().equals("POST")) {
@@ -258,7 +273,7 @@ public class PredictionServer implements Container {
 				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
 				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
 				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>" + "</body>";
-	}
+	}	
 	
 	protected String handleGetTestData(Request request, Response response) {
 		response.setValue("Content-Type", "text/html");
@@ -267,6 +282,13 @@ public class PredictionServer implements Container {
 				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
 				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
 				+ "<input type=\"submit\" name=\"Submit\" value=\"Predict\">" + "</form>" + "</body>";
+	}
+	
+	protected String handleCsvSave(Request request, Response response) {
+		response.setValue("Content-Type", "text/html");
+		return "<head><title>SIDE Loader</title></head><body>" + "<h1>Upload Test Data</h1>"
+				+ "<form action=\"CSVsave\" method=\"post\" enctype=\"multipart/form-data\">"
+				+ "<input type=\"submit\" name=\"Submit\" value=\"Save\">" + "</form>" + "</body>";
 	}
 
 	protected String handleGetEvaluate(Request request, Response response, String header) {
@@ -350,7 +372,7 @@ public class PredictionServer implements Container {
 		files.add(file_Name);
 		//creating a document list and setting all the required parameters for feature extraction
 		DocumentList d = new DocumentList(files);
-		String annot = "Vote";
+		String annot = "Complexity_level";
 		if (d.getTextColumns().contains(annot))
 		{
 			d.setTextColumn(annot, false);
@@ -422,7 +444,7 @@ public class PredictionServer implements Container {
 			if (!halt)
 			{
 				update.update("Building Feature Table");
-				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , "Vote" , Type.NOMINAL);
+				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , "Complexity_level" , Type.NOMINAL);
 				ft.setName(file_Name+"testFeatures");
 				plan.setFeatureTable(ft);
 				
@@ -435,11 +457,11 @@ public class PredictionServer implements Container {
 		}
 	
 		Collection<Feature> features=plan.getFeatureTable().getSortedFeatures();
-		System.out.println("Number of features extracted:"+ features.size());
+		/*System.out.println("Number of features extracted:"+ features.size());
 		for(Feature f: features )
 		{
 			System.out.println("feature name: "+f);
-		}
+		}*/
 		System.out.println("Created Feature Extraction!!");
 		BuildModelControl.setHighlightedFeatureTableRecipe(plan);
 		Workbench.getRecipeManager().addRecipe(plan);
@@ -449,6 +471,7 @@ public class PredictionServer implements Container {
 	}
 	
 	public String handleBuildModel(Recipe plan) {
+		String accuracy="";
 	
 		Map<LearningPlugin, Boolean> learningPlugins;
 		SIDEPlugin[] learners = PluginManager.getSIDEPluginArrayByType("model_builder");
@@ -512,8 +535,10 @@ public class PredictionServer implements Container {
 						
 					System.out.println("Model Evaluation Matrix");
 					for(String s:allKeys.keySet())
-					{
-						System.out.println(s+" "+allKeys.get(s));
+					{	if (s.equals("Accuracy"))
+						{
+							accuracy=allKeys.get(s);
+						}
 					}
 					
 				}
@@ -527,8 +552,7 @@ public class PredictionServer implements Container {
 		}
 		Workbench.update(RecipeManager.Stage.TRAINED_MODEL);
 		Workbench.getRecipeManager().addRecipe(plan);
-		System.out.println("Recipe name:"+plan.getRecipeName());
-		return "Success";
+		return accuracy;
 	}
 	
 	
@@ -590,6 +614,7 @@ public class PredictionServer implements Container {
 		this.executor = Executors.newFixedThreadPool(size);
 	}
 	
+	//protected HashMap<String,List<String>> handlePredictTest(Request request, Response response) throws IOException {
 	protected String handlePredictTest(Request request, Response response) throws IOException {
 		// TODO: use threaded tasks.
 		String answer = "";
@@ -623,14 +648,14 @@ public class PredictionServer implements Container {
 				newDocs = predictor.predict(originalDocs, name, showDists, overwrite);
 				String[] a=newDocs.getAnnotationNames();
 				
-				for(String s:a)
+		/*		for(String s:a)
 				{
 					System.out.println("column:"+s);
 				}
 					System.out.println("value:");
 					List<String> l=newDocs.getAnnotationArray("PredictedTestData");
 					for(String s1:l)
-						System.out.print(s1+", ");
+						System.out.print(s1+", ");  */
 					
 				
 			//}
@@ -644,7 +669,27 @@ public class PredictionServer implements Container {
 		{
 			answer="Success";
 		}
+		
+		Workbench.getRecipeManager().deleteRecipe(trainedModel);
+		trainedModel.setDocumentList(newDocs);
+		Workbench.getRecipeManager().addRecipe(trainedModel);
+		
 		return answer;
+	}
+	
+	protected String handleCSVSave(Request request, Response response) throws IOException {
+		
+		Collection<Recipe> recipelist=Workbench.getRecipeManager().getRecipeCollectionByType(RecipeManager.Stage.TRAINED_MODEL);
+		
+		List<Recipe> rp=new ArrayList<Recipe>(recipelist);
+		DocumentListTableModel model = new DocumentListTableModel(null);
+		Recipe recipe = rp.get(0);
+		model.setDocumentList(recipe.getDocumentList());
+		if(recipe != null)
+		CSVExporter.exportToCSV(model, recipe.getDocumentList().getName()); 
+		System.out.println("Saved CSV file!");
+		return "Success";
+		
 	}
 
 	protected String handlePredict(Request request, Response response) throws IOException {
@@ -767,4 +812,4 @@ public class PredictionServer implements Container {
 		}
 	}
 
-}
+}  
