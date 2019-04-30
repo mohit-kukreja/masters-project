@@ -72,8 +72,10 @@ import edu.cmu.side.view.util.ParallelTaskUpdater;
 import edu.cmu.side.view.util.RadioButtonListEntry;
 import edu.cmu.side.view.util.SwingUpdaterLabel;
 import plugins.features.BasicFeatures;
+import plugins.features.ColumnFeatures;
 import weka.classifiers.bayes.NaiveBayes;
 import plugins.learning.WekaBayes;
+import plugins.learning.WekaLogit;
 import edu.cmu.side.control.BuildModelControl;
 
 import edu.cmu.side.model.data.TrainingResult;
@@ -147,7 +149,7 @@ public class PredictionServer implements Container {
 			else if (target.equals("/uploadinput")) {
 				
 				if (request.getMethod().equals("POST")) {
-					
+					System.out.println("combobox entry fetched:"+request.getPart("algo").getContent());
 					answer = handleUploadInputDocument(request, response);
 					if (answer!="")
 					{				
@@ -272,6 +274,8 @@ public class PredictionServer implements Container {
 				+ "<form action=\"uploadinput\" method=\"post\" enctype=\"multipart/form-data\">"
 				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
 				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
+				+"<select name=\"algo\"><option value=\"naive\">Naive Bayes</option>"
+				+"<option value=\"logistic\">Logistic Regression</option></select><br>"
 				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>" + "</body>";
 	}	
 	
@@ -339,6 +343,8 @@ public class PredictionServer implements Container {
 	protected String handleUploadInputDocument(Request request, Response response)throws IOException, FileNotFoundException {
 		Part part = request.getPart("inputfile");
 		String file_Name = part.getFileName();
+		String algo=request.getPart("algo").getContent();
+		System.out.println("algo:"+algo);
 		//copy the uploaded file into testdata folder
 		final String destpath = Workbench.dataFolder.getAbsolutePath();
 	    final Part filePart = request.getPart("inputfile");
@@ -401,27 +407,62 @@ public class PredictionServer implements Container {
 		
 		//adding an extractor to recipe i.e Basic Features
 		FeaturePlugin b = new BasicFeatures();
+		FeaturePlugin c = new ColumnFeatures();
 		Collection<FeaturePlugin> plugins = new HashSet<FeaturePlugin>();
 		plugins.add(b);
+		if(algo.equals("logistic"))
+		{
+			plugins.add(c);
+		}
 		
-		Map<String, String> plugin_config = new HashMap<String, String>(); 
-		plugin_config.put("Bigrams","false");
-		plugin_config.put("Contains Non-Stopwords","false");
-		plugin_config.put("Count Occurences","false");
-		plugin_config.put("Ignore All-stopword N-Grams","false");
-		plugin_config.put("Include Punctuation","true");
-		plugin_config.put("Line Length","false");
-		plugin_config.put("Normalize N-Gram Counts","false");
-		plugin_config.put("POS Bigrams","false");
-		plugin_config.put("POS Trigrams","false");
-		plugin_config.put(" Skip Stopwords in N-Grams","false");
-		plugin_config.put("Stem N-Grams","false");
-		plugin_config.put("Track Feature Hit Location","true");
-		plugin_config.put("Trigrams","false");
-		plugin_config.put("Unigrams","true");
-		plugin_config.put("Word/POS Pairs","false");
-		plan.addExtractor(b, plugin_config);
+		Map<String, String> plugin_config_naive = new HashMap<String, String>(); 
+		
+		if(algo.equals("naive"))
+		{
+			plugin_config_naive.put("Bigrams","false");
+			plugin_config_naive.put("Contains Non-Stopwords","false");
+			plugin_config_naive.put("Count Occurences","false");
+			plugin_config_naive.put("Ignore All-stopword N-Grams","false");
+			plugin_config_naive.put("Include Punctuation","true");
+			plugin_config_naive.put("Line Length","false");
+			plugin_config_naive.put("Normalize N-Gram Counts","false");
+			plugin_config_naive.put("POS Bigrams","false");
+			plugin_config_naive.put("POS Trigrams","false");
+			plugin_config_naive.put(" Skip Stopwords in N-Grams","false");
+			plugin_config_naive.put("Stem N-Grams","false");
+			plugin_config_naive.put("Track Feature Hit Location","true");
+			plugin_config_naive.put("Trigrams","false");
+			plugin_config_naive.put("Unigrams","true");
+			plugin_config_naive.put("Word/POS Pairs","false");
+			plan.addExtractor(b, plugin_config_naive);
+		}
+		else if (algo.equals("logistic"))
+		{
+			
+			plugin_config_naive.put("Bigrams","true");
+			plugin_config_naive.put("Contains Non-Stopwords","false");
+			plugin_config_naive.put("Count Occurences","true");
+			plugin_config_naive.put("Ignore All-stopword N-Grams","true");
+			plugin_config_naive.put("Include Punctuation","true");
+			plugin_config_naive.put("Line Length","true");
+			plugin_config_naive.put("Normalize N-Gram Counts","true");
+			plugin_config_naive.put("POS Bigrams","true");
+			plugin_config_naive.put("POS Trigrams","true");
+			plugin_config_naive.put(" Skip Stopwords in N-Grams","true");
+			plugin_config_naive.put("Stem N-Grams","true");
+			plugin_config_naive.put("Track Feature Hit Location","false");
+			plugin_config_naive.put("Trigrams","true");
+			plugin_config_naive.put("Unigrams","true");
+			plugin_config_naive.put("Word/POS Pairs","true");
+			plan.addExtractor(b, plugin_config_naive);
+			
+			Map<String, String> plugin_config_log = new HashMap<String, String>(); 
+			plugin_config_log.put("Complexity_type", "NOMINAL");
+			plan.addExtractor(c, plugin_config_log);
+		}
 		boolean halt=false;
+		
+		
 		FeaturePlugin activeExtractor =  null;
 		StatusUpdater update = new SwingUpdaterLabel();
 	//checking the number of hits and generating feature table
@@ -457,31 +498,50 @@ public class PredictionServer implements Container {
 		}
 	
 		Collection<Feature> features=plan.getFeatureTable().getSortedFeatures();
-		/*System.out.println("Number of features extracted:"+ features.size());
-		for(Feature f: features )
-		{
-			System.out.println("feature name: "+f);
-		}*/
+		System.out.println("Number of features extracted:"+ features.size());
+//		for(Feature f: features )
+//		{
+//			System.out.println("feature name: "+f);
+//		}
 		System.out.println("Created Feature Extraction!!");
-		BuildModelControl.setHighlightedFeatureTableRecipe(plan);
-		Workbench.getRecipeManager().addRecipe(plan);
-		String s = handleBuildModel(plan);
+	//	BuildModelControl.setHighlightedFeatureTableRecipe(plan);
+		//Workbench.getRecipeManager().addRecipe(plan);
+		String s = handleBuildModel(plan,algo);
 		System.out.println(s);
 		return "Success";
 	}
 	
-	public String handleBuildModel(Recipe plan) {
+	public String handleBuildModel(Recipe plan,String algo) {
 		String accuracy="";
 	
 		Map<LearningPlugin, Boolean> learningPlugins;
 		SIDEPlugin[] learners = PluginManager.getSIDEPluginArrayByType("model_builder");
+//		for(int i=0;i<learners.length;i++)
+//		{
+//			System.out.println(i+":"+learners[i].getOutputName());
+//		}
 		
-		plan=plan.addLearnerToRecipe(plan,(LearningPlugin)learners[2] , learners[2].generateConfigurationSettings());
+		if (algo.equals("naive"))
+		{
+			plan=plan.addLearnerToRecipe(plan,(LearningPlugin)learners[2] , learners[2].generateConfigurationSettings());
+			
+			WekaBayes wb= new WekaBayes();
+			plan.setLearnerSettings(wb.generateConfigurationSettings());
+		}
+		else if (algo.equals("logistic"))
+		{
+			Map<String,String> mp=learners[0].generateConfigurationSettings();
+			for(String k:mp.keySet())
+			{
+				System.out.println("key:"+mp.get(k));
+				System.out.println("value:"+mp.get(k));
+			}
+			plan=plan.addLearnerToRecipe(plan,(LearningPlugin)learners[0] , learners[0].generateConfigurationSettings());
+			WekaLogit wl = new WekaLogit();
+			plan.setLearnerSettings(wl.generateConfigurationSettings());
+		}
 		
-		WekaBayes wb= new WekaBayes();
-		plan.setLearnerSettings(wb.generateConfigurationSettings());
-		
-		BuildModelControl.updateValidationSetting("annotation", "Age");
+		BuildModelControl.updateValidationSetting("annotation", "Complexity_type");
 		BuildModelControl.updateValidationSetting("foldMethod", "AUTO");
 		BuildModelControl.updateValidationSetting("numFolds", "10");
 		BuildModelControl.updateValidationSetting("source", "RANDOM");
@@ -494,12 +554,23 @@ public class PredictionServer implements Container {
 		try
 		{
 			FeatureTable current = plan.getTrainingTable();
+			System.out.println("training table size:"+current.getSize());
 			if (current != null)
 			{
 				TrainingResult results = null;
 				if (results == null)
 				{
 					logger.info("Training new model.");
+					System.out.println("here!");
+					System.out.println("size of learner settings:"+plan.getLearnerSettings().size());
+					for(String a:plan.getLearnerSettings().keySet())
+					{
+						System.out.println("key:"+a);
+						System.out.println("value:"+plan.getLearnerSettings().get(a));
+						
+					}
+					System.out.println(BuildModelControl.getValidationSettings());
+					System.out.println(plan.getWrappers().toString());
 					results = plan.getLearner().train(current, plan.getLearnerSettings(), BuildModelControl.getValidationSettings(), plan.getWrappers(),
 							BuildModelControl.getUpdater());
 					
@@ -509,7 +580,7 @@ public class PredictionServer implements Container {
 				{
 					System.out.println("Fetched Results successfully");
 					plan.setTrainingResult(results);
-					results.setName("BuiltNaiveBayes");
+					results.setName("BuiltModel");
 
 					plan.setLearnerSettings(plan.getLearner().generateConfigurationSettings());
 					plan.setValidationSettings(new TreeMap<String, Serializable>(BuildModelControl.getValidationSettings()));
@@ -551,7 +622,7 @@ public class PredictionServer implements Container {
 			
 		}
 		Workbench.update(RecipeManager.Stage.TRAINED_MODEL);
-		Workbench.getRecipeManager().addRecipe(plan);
+		Workbench.getRecipeManager().addRecipe(plan);  
 		return accuracy;
 	}
 	
