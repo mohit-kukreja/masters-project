@@ -8,3 +8,12 @@ nb-select {
 input {
   margin: 1rem;
 }
+nb-progress-bar {
+  margin: 1rem;
+  width: 25rem;
+  flex: 1;
+}
+.container {
+  display: flex;
+  align-items: center;
+}

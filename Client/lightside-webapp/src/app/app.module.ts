@@ -64,7 +64,7 @@ import { BuildTabService } from "./build-tab/build-tab.service";
     NbLayoutModule,
     NbSidebarModule,
     HttpClientModule,
-    NbThemeModule.forRoot({ name: "corporate" }),
+    NbThemeModule.forRoot({ name: "default" }),
     NbLayoutModule,
     NbActionsModule,
     NbCardModule,

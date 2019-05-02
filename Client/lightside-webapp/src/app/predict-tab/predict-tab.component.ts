@@ -1,6 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { BuildTabService } from "../build-tab/build-tab.service";
 import { FormControl, FormGroup } from "@angular/forms";
+import { Router } from "@angular/router";
 
 @Component({
   selector: "predict-tab",
@@ -14,8 +15,13 @@ export class PredictTabComponent {
   loading = false;
   uploading = "uploading";
   result: any;
+  public show: boolean = false;
+
   barResult = 0;
-  constructor(private buildTabService: BuildTabService) {}
+  constructor(
+    private buildTabService: BuildTabService,
+    private router: Router
+  ) {}
 
   onFileSelected(event) {
     this.SelectedFile = event.target.files[0];
@@ -26,20 +32,15 @@ export class PredictTabComponent {
     this.loading = true;
   }
 
-  setValue(newValue) {
-    this.barResult = Math.min(Math.max(newValue, 0), 100);
+  saveCSV() {
+    console.log("save clicked");
+    this.buildTabService.exportToCSV().subscribe(article => {
+      console.log("save csv" + article.headers.get("file Uploaded"));
+    });
   }
 
-  get status() {
-    if (this.barResult <= 25) {
-      return "danger";
-    } else if (this.barResult <= 50) {
-      return "warning";
-    } else if (this.barResult <= 75) {
-      return "info";
-    } else {
-      return "success";
-    }
+  setValue() {
+    this.router.navigate(["/BuildTab"]);
   }
 
   onSubmit() {
@@ -49,14 +50,7 @@ export class PredictTabComponent {
     this.buildTabService.uploadTestFile(payload).subscribe(article => {
       // this.result = article + "\t Please check Console";
       this.loading = false;
-      this.result = this.buildTabService.getResult();
-      // console.log("predict tab: \t" + this.result);
-      this.barResult = this.result * 100;
-      console.log("predict tab: \t" + this.barResult);
-    });
-
-    this.buildTabService.exportToCSV().subscribe(article => {
-      console.log("save csv" + article.headers.get("file Uploaded"));
+      this.show = !this.show;
     });
   }
 }

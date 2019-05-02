@@ -13,7 +13,9 @@ export class BuildTabComponent implements OnInit {
   SelectedFile = null;
   selectedOption: any;
   loading = false;
+  public show: boolean = false;
   result: any;
+  barResult = 0;
   uploading = "uploading";
   constructor(private buildTabService: BuildTabService) {
     this.buildTabService.reBuildTab();
@@ -29,15 +31,32 @@ export class BuildTabComponent implements OnInit {
   toggleLoadingAnimation() {
     this.loading = true;
   }
+  setValue(newValue) {
+    this.barResult = Math.min(Math.max(newValue, 0), 100);
+  }
+
+  get status() {
+    if (this.barResult <= 25) {
+      return "danger";
+    } else if (this.barResult <= 50) {
+      return "warning";
+    } else if (this.barResult <= 75) {
+      return "info";
+    } else {
+      return "success";
+    }
+  }
 
   onSubmit() {
     console.log(this.selectedOption);
     const payload = new FormData();
     payload.append("inputfile", this.SelectedFile);
     payload.append("algo", this.selectedOption);
+    this.show = true;
 
     this.buildTabService.uploadFile(payload).subscribe(accuracy => {
       this.result = parseFloat(accuracy);
+      this.barResult = this.result * 100;
       this.buildTabService.setResult(accuracy);
       this.loading = false;
     });

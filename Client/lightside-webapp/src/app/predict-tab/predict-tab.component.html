@@ -12,9 +12,9 @@
               (change)="onFileSelected($event)"
             />
             <div class="d-flex align-items-start">
-              <Button
+              <button
                 nbButton
-                status="success"
+                status="info"
                 size="medium"
                 (click)="toggleLoadingAnimation()"
                 [nbSpinner]="loading"
@@ -23,32 +23,31 @@
                 [nbSpinnerMessage]="uploading"
                 type="submit"
                 name="Submit"
-                >Upload</Button
               >
-              <!-- <div>
-                  <nb-actions size="medium">
-                    <nb-action icon="nb-checkmark"></nb-action>
-                  </nb-actions>
-                </div> -->
+                Predict
+              </button>
             </div>
-            <!-- <span ng-if="result!=''"
-              ><label
-                >The accuracy of your predicted data is: {{ result }}</label
-              ></span
-            > -->
           </form>
-          <div class="container">
-            <span>
-              <label>
-                Accuracy
-              </label>
-            </span>
-            <nb-progress-bar
-              [value]="barResult"
-              [status]="status"
-              [displayValue]="true"
-            ></nb-progress-bar>
-          </div>
+          <ng-container *ngIf="show">
+            <button
+              (click)="saveCSV()"
+              nbButton
+              shape="round"
+              size="small"
+              status="success"
+            >
+              Save
+            </button>
+            <button
+              nbButton
+              shape="semi-round"
+              (click)="setValue()"
+              outline
+              status="info"
+            >
+              Click here to build another Model
+            </button>
+          </ng-container>
         </div>
       </div>
     </div>
