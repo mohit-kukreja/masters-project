@@ -45,8 +45,12 @@ import org.simpleframework.transport.Server;
 import org.simpleframework.transport.connect.Connection;
 import org.simpleframework.transport.connect.SocketConnection;
 
+
+
+
 import edu.cmu.side.Workbench;
 import edu.cmu.side.control.ExtractFeaturesControl;
+import edu.cmu.side.control.PredictLabelsControl;
 import edu.cmu.side.model.Recipe;
 import edu.cmu.side.model.RecipeManager;
 import edu.cmu.side.model.StatusUpdater;
@@ -62,12 +66,16 @@ import edu.cmu.side.plugin.ModelMetricPlugin;
 import edu.cmu.side.plugin.SIDEPlugin;
 import edu.cmu.side.plugin.WrapperPlugin;
 import edu.cmu.side.plugin.control.PluginManager;
+import edu.cmu.side.view.util.CSVExporter;
+import edu.cmu.side.view.util.DocumentListTableModel;
 import edu.cmu.side.view.util.ParallelTaskUpdater;
 import edu.cmu.side.view.util.RadioButtonListEntry;
 import edu.cmu.side.view.util.SwingUpdaterLabel;
 import plugins.features.BasicFeatures;
+import plugins.features.ColumnFeatures;
 import weka.classifiers.bayes.NaiveBayes;
 import plugins.learning.WekaBayes;
+import plugins.learning.WekaLogit;
 import edu.cmu.side.control.BuildModelControl;
 
 import edu.cmu.side.model.data.TrainingResult;
@@ -81,6 +89,7 @@ import edu.cmu.side.model.data.TrainingResult;
  * 
  * @author dadamson
  */
+
 public class PredictionServer implements Container {
 	protected static Map<String, Predictor> predictors = new HashMap<String, Predictor>();
 
@@ -100,7 +109,8 @@ public class PredictionServer implements Container {
 	}
 
 	@Override
-	public void handle(final Request request, final Response response) {
+	public void handle(final Request request, final Response response){
+	//public void handle(HttpServletRequest request, HttpServletResponse response) throws ServletException{
 		executor.execute(new Runnable() {
 
 			@Override
@@ -121,9 +131,10 @@ public class PredictionServer implements Container {
 
 			String answer = null;
 
-			response.setValue("Content-Type", "text/plain");
+			response.setValue("Content-Type", "multipart/form-data");
 			response.setValue("Server", "HelloWorld/1.0 (Simple 4.0)");
 			response.setValue("Access-Control-Allow-Origin", "*");
+			response.setValue("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
 			response.setDate("Date", time);
 			response.setDate("Last-Modified", time);
 
@@ -137,15 +148,18 @@ public class PredictionServer implements Container {
 			}
 
 			else if (target.equals("/uploadinput")) {
-				//System.out.println("here");
+				
 				if (request.getMethod().equals("POST")) {
-					//System.out.println();
+					System.out.println("combobox entry fetched:"+request.getPart("algo").getContent());
 					answer = handleUploadInputDocument(request, response);
-					if (answer=="Success")
-					{
-//						response.setDescription("Successfully uploaded file");
-						answer= response.getDescription();
-						response.setValue("file Uploaded",answer);
+					if (answer!="")
+					{				
+//						answer= response.getDescription();
+						response.setValue("file Uploaded","Success");
+						response.setValue("Accuracy",answer);
+						response.setDescription(answer);
+						response.setDescription("OK");
+						System.out.println("response is"+response.getDescription());
 					}
 						
 				} else {
@@ -153,16 +167,39 @@ public class PredictionServer implements Container {
 				}
 			}
 			
-//			else if (target.equals("/buildmodel")) {
-//				System.out.println("buildmodel rest");
-//				if (request.getMethod().equals("POST")) {
-//					//System.out.println();
-//					answer = handleBuildModel(request, response);	
-//				} else {
-//					answer = handleGetInputDocument(request, response);
-//				}
-//			}
+			else if (target.equals("/uploadtest")) {
+				
+				if (request.getMethod().equals("POST")) {
+					
+					answer = handlePredictTest(request, response);
+					if (answer=="Success")
+					{
+
+						answer= response.getDescription();
+						
+					}
+						
+				} else {
+					answer = handleGetTestData(request, response);
+				}
+			}
 			
+			else if (target.equals("/CSVsave")) {
+				
+				if (request.getMethod().equals("POST")) {
+					
+					answer = handleCSVSave(request, response);
+					if (answer!="")
+					{
+						response.setDescription("Predicted File");
+						answer= response.getDescription();
+						response.setValue("file Uploaded",answer);
+					}
+						
+				} else {
+					answer = handleCsvSave(request, response);
+				}
+			}
 
 			else if (target.startsWith("/try")) {
 				if (request.getMethod().equals("POST")) {
@@ -240,7 +277,25 @@ public class PredictionServer implements Container {
 				+ "<form action=\"uploadinput\" method=\"post\" enctype=\"multipart/form-data\">"
 				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
 				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
+				+"<select name=\"algo\"><option value=\"naive\">Naive Bayes</option>"
+				+"<option value=\"logistic\">Logistic Regression</option></select><br>"
 				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>" + "</body>";
+	}	
+	
+	protected String handleGetTestData(Request request, Response response) {
+		response.setValue("Content-Type", "text/html");
+		return "<head><title>SIDE Loader</title></head><body>" + "<h1>Upload Test Data</h1>"
+				+ "<form action=\"uploadtest\" method=\"post\" enctype=\"multipart/form-data\">"
+				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
+				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
+				+ "<input type=\"submit\" name=\"Submit\" value=\"Predict\">" + "</form>" + "</body>";
+	}
+	
+	protected String handleCsvSave(Request request, Response response) {
+		response.setValue("Content-Type", "text/html");
+		return "<head><title>SIDE Loader</title></head><body>" + "<h1>Upload Test Data</h1>"
+				+ "<form action=\"CSVsave\" method=\"post\" enctype=\"multipart/form-data\">"
+				+ "<input type=\"submit\" name=\"Submit\" value=\"Save\">" + "</form>" + "</body>";
 	}
 
 	protected String handleGetEvaluate(Request request, Response response, String header) {
@@ -291,6 +346,8 @@ public class PredictionServer implements Container {
 	protected String handleUploadInputDocument(Request request, Response response)throws IOException, FileNotFoundException {
 		Part part = request.getPart("inputfile");
 		String file_Name = part.getFileName();
+		String algo=request.getPart("algo").getContent();
+		System.out.println("algo:"+algo);
 		//copy the uploaded file into testdata folder
 		final String destpath = Workbench.dataFolder.getAbsolutePath();
 	    final Part filePart = request.getPart("inputfile");
@@ -324,7 +381,7 @@ public class PredictionServer implements Container {
 		files.add(file_Name);
 		//creating a document list and setting all the required parameters for feature extraction
 		DocumentList d = new DocumentList(files);
-		String annot = "Vote";
+		String annot = "Complexity_level";
 		if (d.getTextColumns().contains(annot))
 		{
 			d.setTextColumn(annot, false);
@@ -353,27 +410,62 @@ public class PredictionServer implements Container {
 		
 		//adding an extractor to recipe i.e Basic Features
 		FeaturePlugin b = new BasicFeatures();
+		FeaturePlugin c = new ColumnFeatures();
 		Collection<FeaturePlugin> plugins = new HashSet<FeaturePlugin>();
 		plugins.add(b);
+		if(algo.equals("logistic"))
+		{
+			plugins.add(c);
+		}
 		
-		Map<String, String> plugin_config = new HashMap<String, String>(); 
-		plugin_config.put("Bigrams","false");
-		plugin_config.put("Contains Non-Stopwords","false");
-		plugin_config.put("Count Occurences","false");
-		plugin_config.put("Ignore All-stopword N-Grams","false");
-		plugin_config.put("Include Punctuation","true");
-		plugin_config.put("Line Length","false");
-		plugin_config.put("Normalize N-Gram Counts","false");
-		plugin_config.put("POS Bigrams","false");
-		plugin_config.put("POS Trigrams","false");
-		plugin_config.put(" Skip Stopwords in N-Grams","false");
-		plugin_config.put("Stem N-Grams","false");
-		plugin_config.put("Track Feature Hit Location","true");
-		plugin_config.put("Trigrams","false");
-		plugin_config.put("Unigrams","true");
-		plugin_config.put("Word/POS Pairs","false");
-		plan.addExtractor(b, plugin_config);
+		Map<String, String> plugin_config_naive = new HashMap<String, String>(); 
+		
+		if(algo.equals("naive"))
+		{
+			plugin_config_naive.put("Bigrams","false");
+			plugin_config_naive.put("Contains Non-Stopwords","false");
+			plugin_config_naive.put("Count Occurences","false");
+			plugin_config_naive.put("Ignore All-stopword N-Grams","false");
+			plugin_config_naive.put("Include Punctuation","true");
+			plugin_config_naive.put("Line Length","false");
+			plugin_config_naive.put("Normalize N-Gram Counts","false");
+			plugin_config_naive.put("POS Bigrams","false");
+			plugin_config_naive.put("POS Trigrams","false");
+			plugin_config_naive.put(" Skip Stopwords in N-Grams","false");
+			plugin_config_naive.put("Stem N-Grams","false");
+			plugin_config_naive.put("Track Feature Hit Location","true");
+			plugin_config_naive.put("Trigrams","false");
+			plugin_config_naive.put("Unigrams","true");
+			plugin_config_naive.put("Word/POS Pairs","false");
+			plan.addExtractor(b, plugin_config_naive);
+		}
+		else if (algo.equals("logistic"))
+		{
+			
+			plugin_config_naive.put("Bigrams","true");
+			plugin_config_naive.put("Contains Non-Stopwords","false");
+			plugin_config_naive.put("Count Occurences","true");
+			plugin_config_naive.put("Ignore All-stopword N-Grams","true");
+			plugin_config_naive.put("Include Punctuation","true");
+			plugin_config_naive.put("Line Length","true");
+			plugin_config_naive.put("Normalize N-Gram Counts","true");
+			plugin_config_naive.put("POS Bigrams","true");
+			plugin_config_naive.put("POS Trigrams","true");
+			plugin_config_naive.put(" Skip Stopwords in N-Grams","true");
+			plugin_config_naive.put("Stem N-Grams","true");
+			plugin_config_naive.put("Track Feature Hit Location","false");
+			plugin_config_naive.put("Trigrams","true");
+			plugin_config_naive.put("Unigrams","true");
+			plugin_config_naive.put("Word/POS Pairs","true");
+			plan.addExtractor(b, plugin_config_naive);
+			
+			Map<String, String> plugin_config_log = new HashMap<String, String>(); 
+			plugin_config_log.put("Complexity_type", "NOMINAL");
+			plan.addExtractor(c, plugin_config_log);
+		}
 		boolean halt=false;
+		
+		
 		FeaturePlugin activeExtractor =  null;
 		StatusUpdater update = new SwingUpdaterLabel();
 	//checking the number of hits and generating feature table
@@ -396,7 +488,7 @@ public class PredictionServer implements Container {
 			if (!halt)
 			{
 				update.update("Building Feature Table");
-				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , "Vote" , Type.NOMINAL);
+				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , "Complexity_level" , Type.NOMINAL);
 				ft.setName(file_Name+"testFeatures");
 				plan.setFeatureTable(ft);
 				
@@ -410,29 +502,49 @@ public class PredictionServer implements Container {
 	
 		Collection<Feature> features=plan.getFeatureTable().getSortedFeatures();
 		System.out.println("Number of features extracted:"+ features.size());
-		for(Feature f: features )
-		{
-			System.out.println("feature name: "+f);
-		}
+//		for(Feature f: features )
+//		{
+//			System.out.println("feature name: "+f);
+//		}
 		System.out.println("Created Feature Extraction!!");
-		BuildModelControl.setHighlightedFeatureTableRecipe(plan);
-		Workbench.getRecipeManager().addRecipe(plan);
-		String s = handleBuildModel(plan);
+	//	BuildModelControl.setHighlightedFeatureTableRecipe(plan);
+		//Workbench.getRecipeManager().addRecipe(plan);
+		String s = handleBuildModel(plan,algo);
 		System.out.println(s);
-		return "Success";
+		return s;
 	}
 	
-	public String handleBuildModel(Recipe plan) {
+	public String handleBuildModel(Recipe plan,String algo) {
+		String accuracy="";
 	
 		Map<LearningPlugin, Boolean> learningPlugins;
 		SIDEPlugin[] learners = PluginManager.getSIDEPluginArrayByType("model_builder");
+//		for(int i=0;i<learners.length;i++)
+//		{
+//			System.out.println(i+":"+learners[i].getOutputName());
+//		}
 		
-		plan=plan.addLearnerToRecipe(plan,(LearningPlugin)learners[2] , learners[2].generateConfigurationSettings());
+		if (algo.equals("naive"))
+		{
+			plan=plan.addLearnerToRecipe(plan,(LearningPlugin)learners[2] , learners[2].generateConfigurationSettings());
+			
+			WekaBayes wb= new WekaBayes();
+			plan.setLearnerSettings(wb.generateConfigurationSettings());
+		}
+		else if (algo.equals("logistic"))
+		{
+			Map<String,String> mp=learners[0].generateConfigurationSettings();
+			for(String k:mp.keySet())
+			{
+				System.out.println("key:"+mp.get(k));
+				System.out.println("value:"+mp.get(k));
+			}
+			plan=plan.addLearnerToRecipe(plan,(LearningPlugin)learners[0] , learners[0].generateConfigurationSettings());
+			WekaLogit wl = new WekaLogit();
+			plan.setLearnerSettings(wl.generateConfigurationSettings());
+		}
 		
-		WekaBayes wb= new WekaBayes();
-		plan.setLearnerSettings(wb.generateConfigurationSettings());
-		
-		BuildModelControl.updateValidationSetting("annotation", "Age");
+		BuildModelControl.updateValidationSetting("annotation", "Complexity_type");
 		BuildModelControl.updateValidationSetting("foldMethod", "AUTO");
 		BuildModelControl.updateValidationSetting("numFolds", "10");
 		BuildModelControl.updateValidationSetting("source", "RANDOM");
@@ -445,12 +557,23 @@ public class PredictionServer implements Container {
 		try
 		{
 			FeatureTable current = plan.getTrainingTable();
+			System.out.println("training table size:"+current.getSize());
 			if (current != null)
 			{
 				TrainingResult results = null;
 				if (results == null)
 				{
 					logger.info("Training new model.");
+					System.out.println("here!");
+					System.out.println("size of learner settings:"+plan.getLearnerSettings().size());
+					for(String a:plan.getLearnerSettings().keySet())
+					{
+						System.out.println("key:"+a);
+						System.out.println("value:"+plan.getLearnerSettings().get(a));
+						
+					}
+					System.out.println(BuildModelControl.getValidationSettings());
+					System.out.println(plan.getWrappers().toString());
 					results = plan.getLearner().train(current, plan.getLearnerSettings(), BuildModelControl.getValidationSettings(), plan.getWrappers(),
 							BuildModelControl.getUpdater());
 					
@@ -460,7 +583,7 @@ public class PredictionServer implements Container {
 				{
 					System.out.println("Fetched Results successfully");
 					plan.setTrainingResult(results);
-					results.setName("BuiltNaiveBayes");
+					results.setName("BuiltModel");
 
 					plan.setLearnerSettings(plan.getLearner().generateConfigurationSettings());
 					plan.setValidationSettings(new TreeMap<String, Serializable>(BuildModelControl.getValidationSettings()));
@@ -486,8 +609,10 @@ public class PredictionServer implements Container {
 						
 					System.out.println("Model Evaluation Matrix");
 					for(String s:allKeys.keySet())
-					{
-						System.out.println(s+" "+allKeys.get(s));
+					{	if (s.equals("Accuracy"))
+						{
+							accuracy=allKeys.get(s);
+						}
 					}
 					
 				}
@@ -499,7 +624,9 @@ public class PredictionServer implements Container {
 			plan = null;
 			
 		}
-		return "Success";
+		Workbench.update(RecipeManager.Stage.TRAINED_MODEL);
+		Workbench.getRecipeManager().addRecipe(plan);  
+		return accuracy;
 	}
 	
 	
@@ -559,6 +686,86 @@ public class PredictionServer implements Container {
 
 	public PredictionServer(int size) {
 		this.executor = Executors.newFixedThreadPool(size);
+	}
+	
+	//protected HashMap<String,List<String>> handlePredictTest(Request request, Response response) throws IOException {
+	protected String handlePredictTest(Request request, Response response) throws IOException {
+		// TODO: use threaded tasks.
+		String answer = "";
+		Collection<Recipe> recipelist=Workbench.getRecipeManager().getRecipeCollectionByType(RecipeManager.Stage.TRAINED_MODEL);
+		System.out.println("Fetched recipelist size:"+recipelist.size());
+		
+		List<Recipe> rp=new ArrayList<Recipe>(recipelist);
+		Recipe trainedModel= rp.get(0);
+		boolean useEvaluation=false;
+		boolean showDists=false;
+		boolean overwrite=false;
+		DocumentList originalDocs;
+		DocumentList newDocs = null;
+		Exception ex = null;
+		String name="PredictedTestData";
+		try
+		{
+			/*if(useEvaluation)
+			{
+				originalDocs = trainedModel.getTrainingResult().getEvaluationTable().getDocumentList();
+
+				TrainingResult results = trainedModel.getTrainingResult();
+				List<String> predictions = (List<String>) results.getPredictions();
+				newDocs = addLabelsToDocs(name, showDists, overwrite, originalDocs, results, predictions);
+			}
+			else
+			{*/
+				originalDocs = trainedModel.getDocumentList();
+
+				Predictor predictor = new Predictor(trainedModel, name);
+				newDocs = predictor.predict(originalDocs, name, showDists, overwrite);
+				String[] a=newDocs.getAnnotationNames();
+				
+		/*		for(String s:a)
+				{
+					System.out.println("column:"+s);
+				}
+					System.out.println("value:");
+					List<String> l=newDocs.getAnnotationArray("PredictedTestData");
+					for(String s1:l)
+						System.out.print(s1+", ");  */
+					
+				
+			//}
+		}
+		catch(Exception e)
+		{
+			ex = e;
+			
+		}
+		if(newDocs.getSize()!=0)
+		{
+			answer="Success";
+		}
+		
+		Workbench.getRecipeManager().deleteRecipe(trainedModel);
+		trainedModel.setDocumentList(newDocs);
+		Workbench.getRecipeManager().addRecipe(trainedModel);
+		
+		return answer;
+	}
+	
+	protected String handleCSVSave(Request request, Response response) throws IOException {
+		
+		Collection<Recipe> recipelist=Workbench.getRecipeManager().getRecipeCollectionByType(RecipeManager.Stage.TRAINED_MODEL);
+		
+		List<Recipe> rp=new ArrayList<Recipe>(recipelist);
+		DocumentListTableModel model = new DocumentListTableModel(null);
+		Recipe recipe = rp.get(0);
+		model.setDocumentList(recipe.getDocumentList());
+		if(recipe != null)
+		{
+			CSVExporter.exportToCSV(model, recipe.getDocumentList().getName()); 
+		}
+		System.out.println("Saved CSV file!");
+		return "Success";
+		
 	}
 
 	protected String handlePredict(Request request, Response response) throws IOException {
@@ -681,4 +888,4 @@ public class PredictionServer implements Container {
 		}
 	}
 
-}
+}  

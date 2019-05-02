@@ -26,16 +26,29 @@
                 >Upload</Button
               >
               <!-- <div>
-                <nb-actions size="medium">
-                  <nb-action icon="nb-checkmark"></nb-action>
-                </nb-actions>
-              </div> -->
+                  <nb-actions size="medium">
+                    <nb-action icon="nb-checkmark"></nb-action>
+                  </nb-actions>
+                </div> -->
             </div>
+            <!-- <span ng-if="result!=''"
+              ><label
+                >The accuracy of your predicted data is: {{ result }}</label
+              ></span
+            > -->
           </form>
-          <!-- <nb-select placeholder="NgModel" [(ngModel)]="selectedOption">
-            <nb-option value="Naive Bayes">Naive Bayes</nb-option>
-            <nb-option value="Logistic Regression">Naive Bayes</nb-option>
-          </nb-select> -->
+          <div class="container">
+            <span>
+              <label>
+                Accuracy
+              </label>
+            </span>
+            <nb-progress-bar
+              [value]="barResult"
+              [status]="status"
+              [displayValue]="true"
+            ></nb-progress-bar>
+          </div>
         </div>
       </div>
     </div>

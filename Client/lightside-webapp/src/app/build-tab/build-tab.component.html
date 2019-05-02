@@ -11,6 +11,16 @@
               name="inputfile"
               (change)="onFileSelected($event)"
             />
+            <nb-select
+              placeholder="Select Algo"
+              [(selected)]="selectedOption"
+              status="success"
+            >
+              <nb-option name="algo" value="naive">Naive Bayes</nb-option>
+              <nb-option name="algo" value="logistic"
+                >Logistic Regression</nb-option
+              >
+            </nb-select>
             <div class="d-flex align-items-start">
               <Button
                 nbButton
@@ -25,22 +35,8 @@
                 name="Submit"
                 >Upload</Button
               >
-
-              <!-- <i class="nb-checkmark"></i> -->
-              <!-- <div>
-                <nb-actions size="medium">
-                  <nb-action icon="nb-checkmark"></nb-action>
-                </nb-actions>
-              </div> -->
             </div>
-            <span ng-if="result!=''"
-              ><label>{{ result }}</label></span
-            >
           </form>
-          <!-- <nb-select placeholder="NgModel" [(ngModel)]="selectedOption">
-            <nb-option value="Naive Bayes">Naive Bayes</nb-option>
-            <nb-option value="Logistic Regression">Naive Bayes</nb-option>
-          </nb-select> -->
         </div>
       </div>
     </div>
