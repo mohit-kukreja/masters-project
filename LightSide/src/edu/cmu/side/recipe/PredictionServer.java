@@ -347,12 +347,10 @@ public class PredictionServer implements Container {
 		Part part = request.getPart("inputfile");
 		String file_Name = part.getFileName();
 		String algo=request.getPart("algo").getContent();
-		System.out.println("algo:"+algo);
 		//copy the uploaded file into testdata folder
 		final String destpath = Workbench.dataFolder.getAbsolutePath();
 	    final Part filePart = request.getPart("inputfile");
 	    final String filename = file_Name.substring(Math.max(file_Name.lastIndexOf("/"), file_Name.lastIndexOf("\\"))+1);
-	   // System.out.print("filename:"+filename);
 	    OutputStream out = null;
 	    InputStream filecontent = null;
 	    try {
@@ -471,15 +469,12 @@ public class PredictionServer implements Container {
 	//checking the number of hits and generating feature table
 		try
 		{
-			// System.out.println("EFC 289: extracting features for new feature table. Annotation "+selectedClassAnnotation+", type "+selectedClassType);
 			Collection<FeatureHit> hits = new HashSet<FeatureHit>();
 			for (SIDEPlugin plug : plan.getExtractors().keySet())
 			{
 				if (!halt)
 				{  
-					//	System.out.println("checking for added plugin: "+plan.getExtractors().get(plug).toString());
 					activeExtractor = (FeaturePlugin) plug;
-					//System.out.println("fetched active extractor"+activeExtractor.toString());
 					hits.addAll(activeExtractor.extractFeatureHits(plan.getDocumentList(), plan.getExtractors().get(plug), update));
 				}
 
@@ -502,15 +497,12 @@ public class PredictionServer implements Container {
 	
 		Collection<Feature> features=plan.getFeatureTable().getSortedFeatures();
 		System.out.println("Number of features extracted:"+ features.size());
-//		for(Feature f: features )
-//		{
-//			System.out.println("feature name: "+f);
-//		}
 		System.out.println("Created Feature Extraction!!");
-	//	BuildModelControl.setHighlightedFeatureTableRecipe(plan);
-		//Workbench.getRecipeManager().addRecipe(plan);
 		String s = handleBuildModel(plan,algo);
 		System.out.println(s);
+		//deleting the saved file
+		File f= new File(destpath+"/"+filename);
+		f.delete();
 		return s;
 	}
 	
@@ -519,10 +511,6 @@ public class PredictionServer implements Container {
 	
 		Map<LearningPlugin, Boolean> learningPlugins;
 		SIDEPlugin[] learners = PluginManager.getSIDEPluginArrayByType("model_builder");
-//		for(int i=0;i<learners.length;i++)
-//		{
-//			System.out.println(i+":"+learners[i].getOutputName());
-//		}
 		
 		if (algo.equals("naive"))
 		{
@@ -688,12 +676,10 @@ public class PredictionServer implements Container {
 		this.executor = Executors.newFixedThreadPool(size);
 	}
 	
-	//protected HashMap<String,List<String>> handlePredictTest(Request request, Response response) throws IOException {
 	protected String handlePredictTest(Request request, Response response) throws IOException {
 		// TODO: use threaded tasks.
 		String answer = "";
 		Collection<Recipe> recipelist=Workbench.getRecipeManager().getRecipeCollectionByType(RecipeManager.Stage.TRAINED_MODEL);
-		System.out.println("Fetched recipelist size:"+recipelist.size());
 		
 		List<Recipe> rp=new ArrayList<Recipe>(recipelist);
 		Recipe trainedModel= rp.get(0);
@@ -706,33 +692,12 @@ public class PredictionServer implements Container {
 		String name="PredictedTestData";
 		try
 		{
-			/*if(useEvaluation)
-			{
-				originalDocs = trainedModel.getTrainingResult().getEvaluationTable().getDocumentList();
-
-				TrainingResult results = trainedModel.getTrainingResult();
-				List<String> predictions = (List<String>) results.getPredictions();
-				newDocs = addLabelsToDocs(name, showDists, overwrite, originalDocs, results, predictions);
-			}
-			else
-			{*/
 				originalDocs = trainedModel.getDocumentList();
 
 				Predictor predictor = new Predictor(trainedModel, name);
 				newDocs = predictor.predict(originalDocs, name, showDists, overwrite);
 				String[] a=newDocs.getAnnotationNames();
 				
-		/*		for(String s:a)
-				{
-					System.out.println("column:"+s);
-				}
-					System.out.println("value:");
-					List<String> l=newDocs.getAnnotationArray("PredictedTestData");
-					for(String s1:l)
-						System.out.print(s1+", ");  */
-					
-				
-			//}
 		}
 		catch(Exception e)
 		{
@@ -754,7 +719,6 @@ public class PredictionServer implements Container {
 	protected String handleCSVSave(Request request, Response response) throws IOException {
 		
 		Collection<Recipe> recipelist=Workbench.getRecipeManager().getRecipeCollectionByType(RecipeManager.Stage.TRAINED_MODEL);
-		
 		List<Recipe> rp=new ArrayList<Recipe>(recipelist);
 		DocumentListTableModel model = new DocumentListTableModel(null);
 		Recipe recipe = rp.get(0);
