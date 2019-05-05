@@ -131,9 +131,10 @@ public class PredictionServer implements Container {
 
 			String answer = null;
 
-			response.setValue("Content-Type", "text/plain");
+			response.setValue("Content-Type", "multipart/form-data");
 			response.setValue("Server", "HelloWorld/1.0 (Simple 4.0)");
 			response.setValue("Access-Control-Allow-Origin", "*");
+			response.setValue("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
 			response.setDate("Date", time);
 			response.setDate("Last-Modified", time);
 
@@ -153,10 +154,12 @@ public class PredictionServer implements Container {
 					answer = handleUploadInputDocument(request, response);
 					if (answer!="")
 					{				
-						answer= response.getDescription();
+//						answer= response.getDescription();
 						response.setValue("file Uploaded","Success");
 						response.setValue("Accuracy",answer);
-						System.out.println(response.getValue("Accuracy"));
+						response.setDescription(answer);
+						response.setDescription("OK");
+						System.out.println("response is"+response.getDescription());
 					}
 						
 				} else {
@@ -186,9 +189,9 @@ public class PredictionServer implements Container {
 				if (request.getMethod().equals("POST")) {
 					
 					answer = handleCSVSave(request, response);
-					if (answer=="Success")
+					if (answer!="")
 					{
-
+						response.setDescription("Predicted File");
 						answer= response.getDescription();
 						response.setValue("file Uploaded",answer);
 					}
@@ -508,7 +511,7 @@ public class PredictionServer implements Container {
 		//Workbench.getRecipeManager().addRecipe(plan);
 		String s = handleBuildModel(plan,algo);
 		System.out.println(s);
-		return "Success";
+		return s;
 	}
 	
 	public String handleBuildModel(Recipe plan,String algo) {
@@ -757,7 +760,9 @@ public class PredictionServer implements Container {
 		Recipe recipe = rp.get(0);
 		model.setDocumentList(recipe.getDocumentList());
 		if(recipe != null)
-		CSVExporter.exportToCSV(model, recipe.getDocumentList().getName()); 
+		{
+			CSVExporter.exportToCSV(model, recipe.getDocumentList().getName()); 
+		}
 		System.out.println("Saved CSV file!");
 		return "Success";
 		

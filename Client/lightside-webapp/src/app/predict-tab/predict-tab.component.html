@@ -1,0 +1,55 @@
+<nb-card>
+  <nb-card-header>Upload File for Prediction</nb-card-header>
+  <nb-card-body>
+    <div class="row">
+      <div class="example-container col-md-6">
+        <div class="container-title">
+          <form (ngSubmit)="onSubmit()">
+            <input
+              type="file"
+              class="form-control"
+              name="inputfile"
+              (change)="onFileSelected($event)"
+            />
+            <div class="d-flex align-items-start">
+              <button
+                nbButton
+                status="info"
+                size="medium"
+                (click)="toggleLoadingAnimation()"
+                [nbSpinner]="loading"
+                nbSpinnerStatus="info"
+                nbSpinnerSize="xsmall"
+                [nbSpinnerMessage]="uploading"
+                type="submit"
+                name="Submit"
+              >
+                Predict
+              </button>
+            </div>
+          </form>
+          <ng-container *ngIf="show">
+            <button
+              (click)="saveCSV()"
+              nbButton
+              shape="round"
+              size="small"
+              status="success"
+            >
+              Save
+            </button>
+            <button
+              nbButton
+              shape="semi-round"
+              (click)="setValue()"
+              outline
+              status="info"
+            >
+              Click here to build another Model
+            </button>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </nb-card-body>
+</nb-card>

@@ -1,0 +1,52 @@
+<nb-card>
+  <nb-card-header>Build your model</nb-card-header>
+  <nb-card-body>
+    <div class="row">
+      <div class="example-container col-md-6">
+        <form (ngSubmit)="onSubmit()">
+          <input
+            type="file"
+            class="form-control"
+            name="inputfile"
+            (change)="onFileSelected($event)"
+          />
+          <nb-select
+            placeholder="Select Algo"
+            [(selected)]="selectedOption"
+            status="info"
+          >
+            <nb-option name="algo" value="naive">Naive Bayes</nb-option>
+            <nb-option name="algo" value="logistic"
+              >Logistic Regression</nb-option
+            >
+          </nb-select>
+          <div class="d-flex align-items-start">
+            <button
+              nbButton
+              status="info"
+              size="medium"
+              (click)="toggleLoadingAnimation()"
+              [nbSpinner]="loading"
+              nbSpinnerStatus="info"
+              nbSpinnerSize="xsmall"
+              [nbSpinnerMessage]="uploading"
+              type="submit"
+              name="Submit"
+            >
+              Build
+            </button>
+          </div>
+        </form>
+        <ng-container *ngIf="show">
+          <nb-progress-bar
+            [value]="barResult"
+            [status]="status"
+            [displayValue]="true"
+          >
+            &nbsp; Accuracy</nb-progress-bar
+          >
+        </ng-container>
+      </div>
+    </div>
+  </nb-card-body>
+</nb-card>
