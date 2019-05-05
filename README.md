@@ -1,10 +1,10 @@
 # LightSIDE Web-APP
 
-This project leverages the [LightSIDE workbench] (https://github.com/LightSideWorkbench/LightSide)
+This project leverages the [LightSIDE workbench](https://github.com/LightSideWorkbench/LightSide)
 
 ## Follow the steps below to run the project
 
-- Pull the official Github Repository from [LightSIDE workbench] (https://github.com/LightSideWorkbench/LightSide)
+- Pull the official Github Repository from [LightSIDE workbench](https://github.com/LightSideWorkbench/LightSide)
 ```
 git pull https://github.com/LightSideWorkbench/LightSide
 ```
