@@ -167,6 +167,26 @@ public class PredictionServer implements Container {
 				}
 			}
 			
+			else if (target.equals("/predicttest")) {
+				
+				if (request.getMethod().equals("POST")) {
+					//System.out.println("combobox entry fetched:"+request.getPart("algo").getContent());
+					answer = handleTestPredict(request, response);
+					if (answer!="")
+					{				
+//						answer= response.getDescription();
+						response.setValue("file Uploaded","Success");
+						response.setValue("Accuracy",answer);
+						response.setDescription(answer);
+						response.setDescription("OK");
+						System.out.println("response is"+response.getDescription());
+					}
+						
+				} else {
+					answer = handleGetPredict(request, response);
+				}
+			}
+			
 			else if (target.equals("/uploadtest")) {
 				
 				if (request.getMethod().equals("POST")) {
@@ -280,6 +300,21 @@ public class PredictionServer implements Container {
 				+"<select name=\"algo\"><option value=\"naive\">Naive Bayes</option>"
 				+"<option value=\"logistic\">Logistic Regression</option></select><br>"
 				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>" + "</body>";
+	}
+	
+	protected String handleGetPredict(Request request, Response response) {
+		response.setValue("Content-Type", "text/html");
+		return "<head><title>SIDE Loader</title></head><body>" + "<h1>Document Loader</h1>"
+				+ "<form action=\"predicttest\" method=\"post\" enctype=\"multipart/form-data\">"
+				+ "Document File: <input type=\"file\" name=\"inputfile\"><br>"
+				//+ "Document Nickname:<input type=\"text\" name=\"inputNick\"> "
+				+"<select name=\"prediction_column\"><option value=\"Q: Questioning\">Q: Questioning</option>"
+				+"<option value=\"T: Theorizing/explaining\">T: Theorizing/explaining</option>"
+				+ "<option value=\"E: Evidence\">E: Evidence</option>"
+				+ "<option value=\"R: Referencing  sources\">R: Referencing  sources</option>"
+				+ "<option value=\"Complexity_level\">Complexity_level</option>"
+				+ "</select><br>"
+				+ "<input type=\"submit\" name=\"Submit\" value=\"Upload File for Extraction\">" + "</form>" + "</body>";
 	}	
 	
 	protected String handleGetTestData(Request request, Response response) {
@@ -357,7 +392,6 @@ public class PredictionServer implements Container {
 	        out = new FileOutputStream(new File(destpath + File.separator
 	                + filename));
 	        filecontent = filePart.getInputStream();
-
 	        int read = 0;
 	        final byte[] bytes = new byte[1024];
 
@@ -483,7 +517,7 @@ public class PredictionServer implements Container {
 			if (!halt)
 			{
 				update.update("Building Feature Table");
-				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , "Complexity_level" , Type.NOMINAL);
+				FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , annot , Type.NOMINAL);
 				ft.setName(file_Name+"testFeatures");
 				plan.setFeatureTable(ft);
 				
@@ -502,7 +536,7 @@ public class PredictionServer implements Container {
 		System.out.println(s);
 		//deleting the saved file
 		File f= new File(destpath+"/"+filename);
-		f.delete();
+		//f.delete();
 		return s;
 	}
 	
@@ -532,7 +566,15 @@ public class PredictionServer implements Container {
 			plan.setLearnerSettings(wl.generateConfigurationSettings());
 		}
 		
-		BuildModelControl.updateValidationSetting("annotation", "Complexity_type");
+		if (algo.equals("naive"))
+		{
+			BuildModelControl.updateValidationSetting("annotation", "E: Evidence");
+		}
+		else
+		{
+			BuildModelControl.updateValidationSetting("annotation", "Complexity_type");		
+		}
+		
 		BuildModelControl.updateValidationSetting("foldMethod", "AUTO");
 		BuildModelControl.updateValidationSetting("numFolds", "10");
 		BuildModelControl.updateValidationSetting("source", "RANDOM");
@@ -562,9 +604,11 @@ public class PredictionServer implements Container {
 					}
 					System.out.println(BuildModelControl.getValidationSettings());
 					System.out.println(plan.getWrappers().toString());
+					System.out.println("leaner:"+plan.getLearner());
+					System.out.println("updater:"+BuildModelControl.getUpdater());
 					results = plan.getLearner().train(current, plan.getLearnerSettings(), BuildModelControl.getValidationSettings(), plan.getWrappers(),
 							BuildModelControl.getUpdater());
-					
+					System.out.println("trained size:"+results.getTrainingTable().getSize());
 				}
 
 				if (results != null)
@@ -617,6 +661,229 @@ public class PredictionServer implements Container {
 		return accuracy;
 	}
 	
+	protected String handleTestPredict(Request request, Response response) throws IOException, FileNotFoundException {
+		//String accuracy="";
+		String algo="";
+		String train_file = "";
+		String annot = request.getPart("prediction_column").getContent();
+		System.out.println("annot:"+annot);
+		if(annot.equals("Complexity_level"))
+		{
+			train_file="Train_KF2.csv";
+			algo="logistic";
+		}
+		else
+		{
+			train_file="Train_KF1.csv";
+			algo="naive";
+		}
+		System.out.println("algo:"+algo);
+		final String destpath = Workbench.dataFolder.getAbsolutePath();
+		File f= new File(destpath+"/"+train_file);
+		 Set<String> files = new HashSet<String>();
+			files.add(train_file);
+			//creating a document list and setting all the required parameters for feature extraction
+			DocumentList d = new DocumentList(files);
+			if (d.getTextColumns().contains(annot))
+			{
+				d.setTextColumn(annot, false);
+			}
+			
+			Type valueType = d.getValueType(annot);
+
+			Map<String, Boolean> columns = new TreeMap<String, Boolean>();
+			for (String s : d.allAnnotations().keySet())
+			{
+				if (!annot.equals(s)) columns.put(s, false);
+			}
+			for (String s : d.getTextColumns())
+			{
+				columns.put(s, true);
+			}
+			//removing text column from all annotations and adding it to textcolumns 
+			d.setTextColumn("text", true);
+			Workbench.update(RecipeManager.Stage.DOCUMENT_LIST);
+			
+		    System.out.println("Completed process of load file");
+		    
+			RecipeManager rp=Workbench.getRecipeManager();
+			Recipe plan=Workbench.recipeManager.fetchDocumentListRecipe(d);
+			//adding an extractor to recipe i.e Basic Features
+			FeaturePlugin b = new BasicFeatures();
+			FeaturePlugin c = new ColumnFeatures();
+			Collection<FeaturePlugin> plugins = new HashSet<FeaturePlugin>();
+			plugins.add(b);
+			if(algo.equals("logistic"))
+			{
+				plugins.add(c);
+			}
+			
+			Map<String, String> plugin_config_naive = new HashMap<String, String>(); 
+			
+			if(algo.equals("naive"))
+			{
+				plugin_config_naive.put("Bigrams","false");
+				plugin_config_naive.put("Contains Non-Stopwords","false");
+				plugin_config_naive.put("Count Occurences","false");
+				plugin_config_naive.put("Ignore All-stopword N-Grams","false");
+				plugin_config_naive.put("Include Punctuation","true");
+				plugin_config_naive.put("Line Length","false");
+				plugin_config_naive.put("Normalize N-Gram Counts","false");
+				plugin_config_naive.put("POS Bigrams","false");
+				plugin_config_naive.put("POS Trigrams","false");
+				plugin_config_naive.put(" Skip Stopwords in N-Grams","false");
+				plugin_config_naive.put("Stem N-Grams","false");
+				plugin_config_naive.put("Track Feature Hit Location","true");
+				plugin_config_naive.put("Trigrams","false");
+				plugin_config_naive.put("Unigrams","true");
+				plugin_config_naive.put("Word/POS Pairs","false");
+				plan.addExtractor(b, plugin_config_naive);
+			}
+			else if (algo.equals("logistic"))
+			{
+				
+				plugin_config_naive.put("Bigrams","true");
+				plugin_config_naive.put("Contains Non-Stopwords","false");
+				plugin_config_naive.put("Count Occurences","true");
+				plugin_config_naive.put("Ignore All-stopword N-Grams","true");
+				plugin_config_naive.put("Include Punctuation","true");
+				plugin_config_naive.put("Line Length","true");
+				plugin_config_naive.put("Normalize N-Gram Counts","true");
+				plugin_config_naive.put("POS Bigrams","true");
+				plugin_config_naive.put("POS Trigrams","true");
+				plugin_config_naive.put(" Skip Stopwords in N-Grams","true");
+				plugin_config_naive.put("Stem N-Grams","true");
+				plugin_config_naive.put("Track Feature Hit Location","false");
+				plugin_config_naive.put("Trigrams","true");
+				plugin_config_naive.put("Unigrams","true");
+				plugin_config_naive.put("Word/POS Pairs","true");
+				plan.addExtractor(b, plugin_config_naive);
+				
+				Map<String, String> plugin_config_log = new HashMap<String, String>(); 
+				plugin_config_log.put("Complexity_type", "NOMINAL");
+				//plugin_config_log.put("E: Evidence", "NOMINAL");
+				plan.addExtractor(c, plugin_config_log);
+			}
+			boolean halt=false;
+			
+			
+			FeaturePlugin activeExtractor =  null;
+			StatusUpdater update = new SwingUpdaterLabel();
+		//checking the number of hits and generating feature table
+			try
+			{
+				Collection<FeatureHit> hits = new HashSet<FeatureHit>();
+				for (SIDEPlugin plug : plan.getExtractors().keySet())
+				{
+					if (!halt)
+					{  
+						activeExtractor = (FeaturePlugin) plug;
+						hits.addAll(activeExtractor.extractFeatureHits(plan.getDocumentList(), plan.getExtractors().get(plug), update));
+					}
+
+				} 
+				System.out.println("size of hits"+hits.size());
+				if (!halt)
+				{
+					update.update("Building Feature Table");
+					FeatureTable ft = new FeatureTable(plan.getDocumentList(), hits, 5 , annot , Type.NOMINAL);
+					ft.setName(train_file);
+					plan.setFeatureTable(ft);
+					
+				} 
+			}
+			catch (Exception e)
+			{
+				JOptionPane.showMessageDialog(null, "Couldn't finish the feature table.\nSee lightside_log for more details.\n"+e.getLocalizedMessage(),"Feature Failure",JOptionPane.ERROR_MESSAGE);
+				System.err.println("Feature Extraction Failed");
+			}
+		
+			Collection<Feature> features=plan.getFeatureTable().getSortedFeatures();
+			System.out.println("Number of features extracted:"+ features.size());
+			System.out.println("Created Feature Extraction!!");
+			String s = handleBuildModel(plan,algo);
+			System.out.println(s);
+			
+			//predict the testing data
+			String answer="";
+			Collection<Recipe> recipelist=Workbench.getRecipeManager().getRecipeCollectionByType(RecipeManager.Stage.TRAINED_MODEL);
+			
+			List<Recipe> rplist=new ArrayList<Recipe>(recipelist);
+			Recipe trainedModel= rplist.get(0);
+			boolean useEvaluation=false;
+			boolean showDists=false;
+			boolean overwrite=false;
+			DocumentList originalDocs;
+			DocumentList newDocs = null;
+			Exception ex = null;
+			String name="PredictedTestData";
+			try
+			{
+				//create documentlist of new test data
+				
+				Part part = request.getPart("inputfile");
+				String file_Name = part.getFileName();
+				System.out.println("name of input file"+file_Name);
+				//copy the uploaded file into testdata folder
+				 //destpath = Workbench.dataFolder.getAbsolutePath();
+			    final Part filePart = request.getPart("inputfile");
+			    final String filename = file_Name.substring(Math.max(file_Name.lastIndexOf("/"), file_Name.lastIndexOf("\\"))+1);
+			    OutputStream out = null;
+			    InputStream filecontent = null;
+			    try {
+			        out = new FileOutputStream(new File(destpath + File.separator
+			                + filename));
+			        filecontent = filePart.getInputStream();
+			        int read = 0;
+			        final byte[] bytes = new byte[1024];
+
+			        while ((read = filecontent.read(bytes)) != -1) {
+			            out.write(bytes, 0, read);
+			        }
+			    } catch (FileNotFoundException fne) {
+			    	System.err.println("Error in prediction server");
+			    } finally {
+			        if (out != null) {
+			            out.close();
+			        }
+			        if (filecontent != null) {
+			            filecontent.close();
+			        }
+			    }
+			    
+			    Set<String> testfiles = new HashSet<String>();
+			    testfiles.add(file_Name); 
+				//creating a document list and setting all the required parameters for feature extraction
+				originalDocs = new DocumentList(testfiles);
+				
+				originalDocs.setTextColumn("text", true);
+
+					Predictor predictor = new Predictor(trainedModel, name);
+					newDocs = predictor.predict(originalDocs, name, showDists, overwrite);
+					
+					String[] a=newDocs.getAnnotationNames();
+					System.out.println("columns of new doc:");
+					for(String q:a)	
+					{
+						System.out.println(q);
+					}
+					
+			}
+			catch(Exception e)
+			{
+				ex = e;
+				
+			}
+			if(newDocs.getSize()!=0)
+			{
+				answer="Success";
+			}
+			
+			Workbench.getRecipeManager().deleteRecipe(trainedModel);
+			trainedModel.setDocumentList(newDocs);
+			Workbench.getRecipeManager().addRecipe(trainedModel);
+			return s;
+	}
 	
 	protected String handleUpload(Request request, Response response) throws IOException, FileNotFoundException {
 		Part part = request.getPart("model");
