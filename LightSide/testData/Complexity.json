@@ -1,0 +1,17 @@
+{
+  "Bigrams": "true",
+  "Contains Non-Stopwords": "true",
+  "Count Occurences": "true",
+  "Ignore All-stopword N-Grams": "true",
+  "Include Punctuation": "true",
+  "Line Length": "true",
+  "Normalize N-Gram Counts": "true",
+  "POS Bigrams": "true",
+  "POS Trigrams": "true",
+  " Skip Stopwords in N-Grams": "true",
+  "Stem N-Grams": "true",
+  "Track Feature Hit Location": "false",
+  "Trigrams": "true",
+  "Unigrams": "true",
+  "Word/POS Pairs": "true"
+}

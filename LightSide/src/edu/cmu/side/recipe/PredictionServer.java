@@ -78,6 +78,11 @@ import plugins.learning.WekaBayes;
 import plugins.learning.WekaLogit;
 import edu.cmu.side.control.BuildModelControl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+//import com.fasterxml.jackson.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.ObjectIdResolver;
+
 import edu.cmu.side.model.data.TrainingResult;
 
 
@@ -718,9 +723,58 @@ public class PredictionServer implements Container {
 				plugins.add(c);
 			}
 			
-			Map<String, String> plugin_config_naive = new HashMap<String, String>(); 
 			
-			if(algo.equals("naive"))
+			ObjectMapper mapper = new ObjectMapper();	 	 
+			Map<String, String> plugin_config_naive =new HashMap<String, String>();
+			Map<String, Object> map1 ;
+	        /**
+	         * Read JSON from a file into a Map
+	         */
+	        try {
+	        	
+	        	if(algo.equals("naive"))
+	        	{
+	        		System.out.println("path to check json:"+destpath+"/Question.json");
+	        		map1 = mapper.readValue(new File(destpath+
+		                    "/Question.json"), new TypeReference<Map<String, Object>>() {
+		            }); 
+	        		
+	        		for(String w:map1.keySet())
+	        		{
+	        			plugin_config_naive.put(w, map1.get(w).toString());
+	        		}
+	        		plan.addExtractor(b, plugin_config_naive);
+	        	}
+	        	else if (algo.equals("logistic"))
+				{
+	        		map1 = mapper.readValue(new File(destpath+
+		                    "/Complexity.json"), new TypeReference<Map<String, Object>>() {
+		            }); 
+	        		for(String w:map1.keySet())
+	        		{
+	        			plugin_config_naive.put(w, map1.get(w).toString());
+	        		}
+	        		plan.addExtractor(b, plugin_config_naive);
+	        		Map<String, String> plugin_config_log = new HashMap<String, String>(); 
+					plugin_config_log.put("Complexity_type", "NOMINAL");
+					//plugin_config_log.put("E: Evidence", "NOMINAL");
+					plan.addExtractor(c, plugin_config_log);
+				}
+	        	
+	         /*   Map<String, Object> carMap = mapper.readValue(new File(
+	                    "result.json"), new TypeReference<Map<String, Object>>() {
+	            });
+	 
+	            System.out.println("Car : " + carMap.get("car"));
+	            System.out.println("Price : " + carMap.get("price"));
+	            System.out.println("Model : " + carMap.get("model"));
+	            System.out.println("Colors : " + carMap.get("colors"));  */
+	 
+	        } catch (Exception e) {
+	            e.printStackTrace();
+	        }
+			
+	/*		if(algo.equals("naive"))
 			{
 				plugin_config_naive.put("Bigrams","false");
 				plugin_config_naive.put("Contains Non-Stopwords","false");
@@ -763,7 +817,7 @@ public class PredictionServer implements Container {
 				plugin_config_log.put("Complexity_type", "NOMINAL");
 				//plugin_config_log.put("E: Evidence", "NOMINAL");
 				plan.addExtractor(c, plugin_config_log);
-			}
+			}  */
 			boolean halt=false;
 			
 			
